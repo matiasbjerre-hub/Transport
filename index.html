@@ -123,6 +123,29 @@
   }
   .result .label-sm { font-size: 0.8rem; color: var(--muted); }
   .result.empty .amount { color: var(--muted); font-weight: 600; font-size: 1.1rem; }
+  .opt { font-weight: 500; color: var(--muted); text-transform: none; letter-spacing: 0; }
+  input[readonly] {
+    background: #f5f5f4;
+    color: var(--muted);
+    cursor: not-allowed;
+  }
+  .truck {
+    display: none;
+    margin-top: 0.75rem;
+    text-align: center;
+    padding: 0.85rem 1rem;
+    border-radius: 10px;
+    background: #fff;
+    border: 1px solid var(--line);
+    font-size: 0.9rem;
+  }
+  .truck.show { display: block; }
+  .truck .t-name { font-weight: 700; color: var(--brand); }
+  .truck.warn {
+    border-color: var(--accent);
+    background: #fef5f6;
+    color: var(--accent);
+  }
   .note {
     font-size: 0.8rem;
     color: var(--muted);
@@ -162,20 +185,29 @@
         </div>
       </div>
 
-      <div class="field">
-        <label for="pallets">Antal paller</label>
-        <input type="number" id="pallets" min="1" max="48" step="1" value="1">
+      <div class="row">
+        <div class="field">
+          <label for="volume">Kubikmeter (m³) <span class="opt">— valgfri</span></label>
+          <input type="number" id="volume" min="0" step="0.1" placeholder="fx 16">
+        </div>
+        <div class="field">
+          <label for="pallets">Antal pallepladser</label>
+          <input type="number" id="pallets" min="1" max="48" step="1" value="1">
+        </div>
       </div>
 
       <div class="result empty" id="result">
         <div class="amount">Vælg afsender og modtager</div>
       </div>
 
+      <div class="truck" id="truck"></div>
+
       <div class="note">
         <strong>Bemærk:</strong> Priser er pr. tur (1 vej) inkl. DMT og hentet fra
         prislisten i DKK (Börje Jonsson). Pris pr. palle falder med antal paller
-        (mængderabat). Maks. 48 paller pr. transport. Kun ruter med en fast pris
-        kan beregnes.
+        (mængderabat). Udfyldes m³, beregnes pallepladser automatisk som m³ ÷ 2
+        (rundet op). Maks. 48 pallepladser pr. transport. Kun ruter med en fast
+        pris kan beregnes.
       </div>
     </div>
   </main>
@@ -210,6 +242,16 @@ const CITIES = [
 const BRACKETS = [1, 2, 3, 4, 5, 6, 7, 8, "9-17", "18-29", "30-48"];
 const MAX_PALLETS = 48;
 
+/* En palleplads svarer til 2 m³. */
+const M3_PER_PALLET = 2;
+
+/* Lastbiler — sorteret efter kapacitet (pallepladser), mindste først. */
+const TRUCKS = [
+  { name: "Liftbil", capacity: 8 },
+  { name: "Lastbil", capacity: 18 },
+  { name: "Lastbil", capacity: 33 }
+];
+
 const RATES = {
   "MMA-STO": [1037.32, 928.08, 677.47, 646.26, 625.14, 552.62, 452.56, 452.56, 406.67, 385.55, 374.54],   // Malmö → Stockholm
   "MMA-GOT": [758.25, 537.02, 421.35, 383.72, 351.59, 312.11, 290.08, 290.08, 223.99, 213.89, 192.78],     // Malmö → Göteborg
@@ -226,8 +268,10 @@ const CURRENCY = "DKK";
    ============================================================ */
 const fromSel = document.getElementById("from");
 const toSel = document.getElementById("to");
+const volumeEl = document.getElementById("volume");
 const palletsEl = document.getElementById("pallets");
 const resultEl = document.getElementById("result");
+const truckEl = document.getElementById("truck");
 
 function fillSelect(sel) {
   CITIES.forEach(function (c) {
@@ -254,6 +298,47 @@ function bracketIndex(n) {
   return -1;
 }
 
+/* Hvis m³ er udfyldt: pallepladser = m³ ÷ 2 (rundet op), og feltet låses. */
+function syncPalletsFromVolume() {
+  const raw = volumeEl.value.trim();
+  const v = parseFloat(raw);
+  if (raw !== "" && !isNaN(v) && v > 0) {
+    palletsEl.value = Math.ceil(v / M3_PER_PALLET);
+    palletsEl.readOnly = true;
+  } else {
+    palletsEl.readOnly = false;
+  }
+}
+
+/* Vælg mindste lastbil der kan rumme antal pallepladser. */
+function truckFor(pallets) {
+  for (let i = 0; i < TRUCKS.length; i++) {
+    if (pallets <= TRUCKS[i].capacity) return TRUCKS[i];
+  }
+  return null;
+}
+
+function updateTruck(pallets) {
+  if (!pallets || pallets < 1 || pallets > MAX_PALLETS) {
+    truckEl.className = "truck";
+    truckEl.innerHTML = "";
+    return;
+  }
+  const truck = truckFor(pallets);
+  if (truck) {
+    truckEl.className = "truck show";
+    truckEl.innerHTML =
+      'Kræver: <span class="t-name">' + truck.name + "</span> (" +
+      truck.capacity + " pallepladser)";
+  } else {
+    const biggest = TRUCKS[TRUCKS.length - 1];
+    truckEl.className = "truck show warn";
+    truckEl.innerHTML =
+      "⚠ " + pallets + " pallepladser overstiger største lastbil (" +
+      biggest.capacity + " pallepladser) — kræver flere transporter.";
+  }
+}
+
 function formatMoney(amount) {
   return new Intl.NumberFormat("da-DK", {
     style: "currency",
@@ -270,22 +355,26 @@ function showEmpty(msg, route) {
 }
 
 function calculate() {
+  syncPalletsFromVolume();
+
   const from = fromSel.value;
   const to = toSel.value;
   const route = nameOf(from) + " &rarr; " + nameOf(to);
+
+  const pallets = parseInt(palletsEl.value, 10);
+  updateTruck(pallets);
 
   if (from === to) {
     showEmpty("Vælg to forskellige byer");
     return;
   }
 
-  const pallets = parseInt(palletsEl.value, 10);
   if (!pallets || pallets < 1) {
-    showEmpty("Angiv antal paller", route);
+    showEmpty("Angiv antal pallepladser", route);
     return;
   }
   if (pallets > MAX_PALLETS) {
-    showEmpty("Maks. " + MAX_PALLETS + " paller pr. transport", route);
+    showEmpty("Maks. " + MAX_PALLETS + " pallepladser pr. transport", route);
     return;
   }
 
@@ -308,6 +397,7 @@ function calculate() {
 
 fromSel.addEventListener("change", calculate);
 toSel.addEventListener("change", calculate);
+volumeEl.addEventListener("input", calculate);
 palletsEl.addEventListener("input", calculate);
 document.getElementById("swap").addEventListener("click", function () {
   const tmp = fromSel.value;
