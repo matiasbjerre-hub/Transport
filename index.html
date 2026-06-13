@@ -1,16 +1,16 @@
 <!DOCTYPE html>
-<html lang="da">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Rent.Group — Særtransport-beregner</title>
+<title>Rent.Group — Transport Cost Calculator</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root {
     --brand: #1a1a1a;
-    --accent: #c8102e;      /* rent.group rød — juster frit */
+    --accent: #c8102e;
     --bg: #f5f5f4;
     --card: #ffffff;
     --line: #e3e3e1;
@@ -77,7 +77,6 @@
     text-transform: uppercase;
     letter-spacing: 0.03em;
   }
-  .opt { font-weight: 500; color: var(--muted); text-transform: none; letter-spacing: 0; }
   select, input {
     width: 100%;
     padding: 0.75rem 0.9rem;
@@ -94,7 +93,6 @@
     border-color: var(--accent);
     box-shadow: 0 0 0 3px rgba(200,16,46,0.12);
   }
-  input[readonly] { background: #f5f5f4; color: var(--muted); cursor: not-allowed; }
   .row { display: flex; gap: 1rem; align-items: flex-end; }
   .row .field { flex: 1; margin-bottom: 0; }
   .swap {
@@ -110,6 +108,38 @@
     transition: all 0.15s;
   }
   .swap:hover { border-color: var(--accent); color: var(--accent); }
+  .opt { font-weight: 500; color: var(--muted); text-transform: none; letter-spacing: 0; }
+  /* Copenhagen Umschlag cities highlighted in the dropdowns */
+  option.umschlag { font-weight: 700; color: var(--accent); background: #fef5f6; }
+  input[readonly] { background: #f5f5f4; color: var(--muted); cursor: not-allowed; }
+  .toggle {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    font-family: inherit;
+    font-size: 0.95rem;
+    font-weight: 600;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: #fff;
+    color: var(--text);
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+  }
+  .toggle:hover { border-color: var(--accent); }
+  .toggle.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
+  .toggle .dot {
+    width: 9px; height: 9px; border-radius: 50%;
+    background: var(--line); flex: 0 0 auto;
+  }
+  .toggle.active .dot { background: #fff; }
   .result {
     margin-top: 0.5rem;
     text-align: center;
@@ -121,7 +151,17 @@
   .result .amount { font-size: 2rem; font-weight: 700; color: var(--brand); }
   .result .label-sm { font-size: 0.8rem; color: var(--muted); }
   .result.empty .amount { color: var(--muted); font-weight: 600; font-size: 1.1rem; }
-  .truck {
+  .legs {
+    margin: 0.25rem 0 0.75rem;
+    font-size: 0.9rem;
+  }
+  .legs .leg {
+    display: flex; justify-content: space-between;
+    padding: 0.35rem 0; border-bottom: 1px solid var(--line);
+  }
+  .legs .leg:last-child { border-bottom: none; }
+  .legs .leg .v { color: var(--muted); }
+  .vehicles {
     display: none;
     margin-top: 0.75rem;
     text-align: center;
@@ -131,24 +171,8 @@
     border: 1px solid var(--line);
     font-size: 0.9rem;
   }
-  .truck.show { display: block; }
-  .truck .t-name { font-weight: 700; color: var(--brand); }
-  .legend {
-    font-size: 0.78rem;
-    color: var(--muted);
-    margin-top: 1rem;
-    display: flex;
-    align-items: center;
-    gap: 0.45rem;
-  }
-  .chip-umschlag {
-    display: inline-block;
-    font-weight: 700;
-    color: var(--accent);
-    background: #fdeaec;
-    border-radius: 6px;
-    padding: 0.05rem 0.4rem;
-  }
+  .vehicles.show { display: block; }
+  .vehicles .v-name { font-weight: 700; color: var(--brand); }
   .note {
     font-size: 0.8rem;
     color: var(--muted);
@@ -168,180 +192,248 @@
 </head>
 <body>
   <header>
-    <h1>Rent.Group — Særtransport-beregner</h1>
-    <span class="badge">Udkast</span>
+    <h1>Rent.Group — Transport Cost Calculator</h1>
+    <span class="badge">Draft</span>
   </header>
 
   <main>
     <div class="card">
-      <h2>Beregn omkostning for en særtransport</h2>
+      <h2>Calculate the cost of a transport</h2>
 
       <div class="row">
         <div class="field">
-          <label for="from">Afsender (fra)</label>
+          <label for="from">Origin (from)</label>
           <select id="from"></select>
         </div>
-        <button class="swap" id="swap" title="Byt afsender og modtager">&#8646;</button>
+        <button class="swap" id="swap" title="Swap origin and destination">&#8646;</button>
         <div class="field">
-          <label for="to">Modtager (til)</label>
+          <label for="to">Destination (to)</label>
           <select id="to"></select>
         </div>
       </div>
 
       <div class="row">
         <div class="field">
-          <label for="volume">Kubikmeter (m³) <span class="opt">— valgfri</span></label>
-          <input type="number" id="volume" min="0" step="0.1" placeholder="fx 16">
+          <label for="volume">Cubic metres (m³) <span class="opt">— optional</span></label>
+          <input type="number" id="volume" min="0" step="0.1" placeholder="e.g. 16">
         </div>
         <div class="field">
-          <label for="pallets">Antal pallepladser</label>
+          <label for="pallets">Pallets</label>
           <input type="number" id="pallets" min="1" max="132" step="1" value="1">
         </div>
-        <div class="field">
-          <label for="currency">Valuta</label>
-          <select id="currency">
-            <option value="DKK">DKK</option>
-            <option value="SEK">SEK</option>
-          </select>
-        </div>
+      </div>
+
+      <div class="field">
+        <label for="currency">Currency</label>
+        <select id="currency">
+          <option value="EUR">EUR (€)</option>
+          <option value="DKK">DKK (kr.)</option>
+          <option value="SEK">SEK (kr)</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <button class="toggle" id="twoways" aria-pressed="false">
+          <span class="dot"></span> 2-ways (return trip)
+        </button>
       </div>
 
       <div class="result empty" id="result">
-        <div class="amount">Vælg afsender og modtager</div>
+        <div class="amount">Select origin and destination</div>
       </div>
 
-      <div class="truck" id="truck"></div>
-
-      <div class="legend">
-        <span class="chip-umschlag">★ By</span>
-        indgår i Københavns Umschlag (deler Hamborgs umschlag).
-      </div>
+      <div class="vehicles" id="vehicles"></div>
 
       <div class="note">
-        <strong>Bemærk:</strong> Priser er pr. tur (1 vej), kilde: Party Rent
-        prisliste i <strong>EUR</strong>, omregnet til valgt valuta med faste
-        kurser (se toppen af <code>&lt;script&gt;</code>). Udfyldes m³, beregnes
-        pallepladser automatisk som m³ ÷ 2 (rundet op). Læs over 33 pallepladser
-        fordeles på flere lastbiler.
+        <strong>Note:</strong> Prices are per transport from the DDSJ 2026
+        international price list, shown in EUR and converted to DKK/SEK using the
+        fixed rates in <code>FX</code> (top of the script). Vehicle is chosen
+        automatically from the number of pallets (Van ≤4, Curtain van ≤8,
+        Trailer 9–18, Full trailer 33). Loads above 33 pallets are split across
+        several vehicles. When m³ is entered, pallets are derived as m³ ÷ 2
+        (rounded up). Routes via Malmö are intentionally excluded. ★ marks the
+        Copenhagen Umschlag cities.
       </div>
     </div>
   </main>
 
   <footer>
-    Rent.Group · Københavns Umschlag · Intern transportberegner
+    Rent.Group · Copenhagen Umschlag · Internal transport calculator
   </footer>
 
 <script>
 /* ============================================================
-   KONFIGURATION
+   CONFIGURATION
    ============================================================ */
-
-/* BYER. 'umschlag: true' = del af Københavns Umschlag (markeres).
-   Kbh. er ikke selv en Umschlag-by — den deler Hamborgs umschlag. */
 const CITIES = [
-  { id: "CPH",  name: "København" },
-  { id: "MMX",  name: "Malmö" },
-  { id: "GBG",  name: "Göteborg" },
-  { id: "STHM", name: "Stockholm" },
-  { id: "OSLO", name: "Oslo" },
-  { id: "HH",   name: "Hamborg",   umschlag: true },
-  { id: "BER",  name: "Berlin",    umschlag: true },
-  { id: "BOH",  name: "Bocholt",   umschlag: true },
-  { id: "HAN",  name: "Hannover",  umschlag: true },
-  { id: "FFM",  name: "Frankfurt" }
+  { id: "CPH", name: "Copenhagen" },
+  { id: "GOT", name: "Gothenburg" },
+  { id: "STO", name: "Stockholm" },
+  { id: "OSL", name: "Oslo" },
+  { id: "HAM", name: "Hamburg", umschlag: true },
+  { id: "BER", name: "Berlin", umschlag: true },
+  { id: "BOC", name: "Bocholt", umschlag: true },
+  { id: "HAN", name: "Hannover", umschlag: true },
+  { id: "BRE", name: "Bremen" },
+  { id: "DOR", name: "Dortmund" },
+  { id: "FFM", name: "Frankfurt" }
 ];
 
-/* VALUTAKURSER — 1 EUR = X. Juster frit (opdateres manuelt). */
-const FX = { DKK: 7.46, SEK: 11.34 };
+/* Exchange rates from EUR — adjust to current rates as needed. */
+const FX = { EUR: 1, DKK: 7.46, SEK: 11.34 };
 
-/* STØRSTE LÆS pr. lastbil (pallepladser) og lastbil-flåde. */
-const TRAILER = 33;
-const TRUCKS = [
-  { name: "Liftbil", capacity: 8 },
-  { name: "Lastbil", capacity: 18 },
-  { name: "Lastbil", capacity: 33 }
-];
-const MAX_PALLETS = 132;   /* ~4 fulde trailere */
+/* Pallet columns in the price list. Last entry = full trailer (33 pallets). */
+const PCOLS = [4, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 33];
+const FULL_TRAILER = 33;
+const MAX_PALLETS = 132; /* up to 4 full trailers */
+
+/* One pallet place = 2 m³. */
 const M3_PER_PALLET = 2;
 
 /* ============================================================
-   PRISTABEL — TOTALPRIS i EUR pr. tur (Party Rent).
-   Nøgle: "FRA-TIL". Array-kolonner (pallepladser):
-   [4, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, "Full trailer"]
-   Berlin (BER) og Hannover (HAN) har ingen priser i listen endnu.
+   PRICE TABLE — EUR per transport (DDSJ 2026, intl.)
+   Key: "FROM-TO". Value: price for each column in PCOLS.
+   Routes involving Malmö are deliberately omitted.
    ============================================================ */
 const RATES_EUR = {
-  "HH-CPH":   [400, 500, 578, 630, 682, 735, 788, 840, 910, 963, 1015, 1068, 1750],
-  "HH-GBG":   [500, 600, 759, 828, 897, 966, 1035, 1104, 1196, 1265, 1334, 1403, 2300],
-  "HH-OSLO":  [700, 800, 940, 1026, 1112, 1197, 1282, 1368, 1482, 1568, 1653, 1738, 2850],
-  "HH-MMX":   [450, 550, 610, 666, 722, 777, 832, 888, 962, 1018, 1073, 1128, 1850],
-  "HH-STHM":  [700, 800, 940, 1026, 1112, 1197, 1282, 1368, 1482, 1568, 1653, 1738, 2850],
-  "BOH-CPH":  [724, 860, 1104, 1189, 1274, 1358, 1443, 1528, 1613, 1698, 1783, 1868, 2830],
-  "BOH-GBG":  [824, 960, 1318, 1420, 1521, 1622, 1724, 1825, 1927, 2028, 2129, 2231, 3380],
-  "BOH-OSLO": [1024, 1160, 1533, 1651, 1768, 1886, 2004, 2122, 2240, 2358, 2476, 2594, 3930],
-  "BOH-MMX":  [774, 910, 1143, 1231, 1318, 1406, 1494, 1582, 1670, 1758, 1846, 1934, 2930],
-  "BOH-STHM": [1024, 1160, 1533, 1651, 1768, 1886, 2004, 2122, 2240, 2358, 2476, 2594, 3930],
-  "FFM-CPH":  [850, 1000, 1268, 1365, 1462, 1560, 1658, 1755, 1852, 1950, 2048, 2145, 3250],
-  "FFM-MMX":  [900, 1050, 1306, 1407, 1508, 1608, 1708, 1809, 1909, 2010, 2110, 2211, 3350],
-  "CPH-BOH":  [674, 810, 1015, 1076, 1137, 1198, 1259, 1320, 1380, 1441, 1502, 1563, 2030],
-  "CPH-FFM":  [800, 950, 1225, 1298, 1372, 1446, 1519, 1592, 1666, 1740, 1813, 1886, 2450],
-  "CPH-GBG":  [400, 500, 625, 662, 700, 738, 775, 812, 850, 888, 925, 962, 1250],
-  "CPH-HH":   [350, 450, 475, 504, 532, 560, 589, 618, 646, 674, 703, 732, 950],
-  "CPH-STHM": [650, 750, 925, 980, 1036, 1092, 1147, 1202, 1258, 1314, 1369, 1424, 1850],
-  "MMX-BOH":  [674, 810, 1076, 1137, 1198, 1259, 1320, 1380, 1441, 1502, 1563, 1624, 2030],
-  "MMX-GBG":  [400, 500, 662, 700, 738, 775, 812, 850, 888, 925, 962, 1000, 1250],
-  "MMX-FFM":  [800, 950, 1298, 1372, 1446, 1519, 1592, 1666, 1740, 1813, 1886, 1960, 2450],
-  "MMX-HH":   [350, 450, 504, 532, 560, 589, 618, 646, 674, 703, 732, 760, 950],
-  "MMX-OSLO": [650, 750, 980, 1036, 1092, 1147, 1202, 1258, 1314, 1369, 1424, 1480, 1850],
-  "MMX-STHM": [650, 750, 980, 1036, 1092, 1147, 1202, 1258, 1314, 1369, 1424, 1480, 1850],
-  "GBG-BOH":  [674, 810, 1076, 1137, 1198, 1259, 1320, 1380, 1441, 1502, 1563, 1624, 2030],
-  "GBG-CPH":  [350, 450, 477, 504, 531, 558, 585, 612, 639, 666, 693, 720, 900],
-  "GBG-HH":   [450, 550, 636, 672, 708, 744, 780, 816, 852, 888, 924, 960, 1200],
-  "GBG-MMX":  [350, 450, 477, 504, 531, 558, 585, 612, 639, 666, 693, 720, 900],
-  "STHM-BOH": [974, 1110, 1314, 1389, 1463, 1538, 1612, 1686, 1761, 1835, 1910, 1984, 2480],
-  "STHM-CPH": [500, 600, 636, 672, 708, 744, 780, 816, 852, 888, 924, 960, 1200],
-  "STHM-HH":  [650, 750, 742, 784, 826, 868, 910, 952, 994, 1036, 1078, 1120, 1400],
-  "STHM-MMX": [500, 600, 636, 672, 708, 744, 780, 816, 852, 888, 924, 960, 1200],
-  "OSLO-BOH": [974, 1110, 1314, 1389, 1463, 1538, 1612, 1686, 1761, 1835, 1910, 1984, 2480],
-  "OSLO-CPH": [500, 600, 636, 672, 708, 744, 780, 816, 852, 888, 924, 960, 1200],
-  "OSLO-HH":  [650, 750, 742, 784, 826, 868, 910, 952, 994, 1036, 1078, 1120, 1400],
-  "OSLO-MMX": [500, 600, 636, 672, 708, 744, 780, 816, 852, 888, 924, 960, 1200]
+  "BER-CPH": [496.8, 621, 717.25, 782.46, 847.66, 912.87, 978.07, 1043.28, 1130.22, 1195.42, 1260.63, 1325.83, 2173.5],
+  "BER-GOT": [569.25, 683.1, 864.12, 942.68, 1021.23, 1099.79, 1178.35, 1256.9, 1361.65, 1440.2, 1518.76, 1597.32, 2618.55],
+  "BER-OSL": [796.95, 910.8, 1070.76, 1168.1, 1265.44, 1362.78, 1460.13, 1557.47, 1687.26, 1784.6, 1881.94, 1979.28, 3244.73],
+  "BER-STO": [796.95, 910.8, 1070.76, 1168.1, 1265.44, 1362.78, 1460.13, 1557.47, 1687.26, 1784.6, 1881.94, 1979.28, 3244.73],
+  "BOC-CPH": [749.34, 890.1, 1142.33, 1230.2, 1318.07, 1405.94, 1493.82, 1581.69, 1669.56, 1757.43, 1845.3, 1933.17, 2929.05],
+  "BOC-GOT": [852.84, 993.6, 1364.34, 1469.29, 1574.23, 1679.18, 1784.13, 1889.08, 1994.03, 2098.98, 2203.93, 2308.88, 3498.3],
+  "BOC-OSL": [1059.84, 1200.6, 1586.34, 1708.37, 1830.4, 1952.42, 2074.45, 2196.48, 2318.5, 2440.53, 2562.56, 2684.58, 4067.55],
+  "BOC-STO": [1059.84, 1200.6, 1586.34, 1708.37, 1830.4, 1952.42, 2074.45, 2196.48, 2318.5, 2440.53, 2562.56, 2684.58, 4067.55],
+  "BRE-CPH": [463.68, 579.6, 669.44, 730.3, 791.15, 852.01, 912.87, 973.73, 1054.87, 1115.73, 1176.59, 1237.45, 2028.6],
+  "BRE-GOT": [569.25, 683.1, 864.12, 942.68, 1021.23, 1099.79, 1178.35, 1256.9, 1361.65, 1440.2, 1518.76, 1597.32, 2618.55],
+  "BRE-OSL": [775.21, 885.96, 1041.56, 1136.24, 1230.93, 1325.62, 1420.3, 1514.99, 1641.24, 1735.93, 1830.61, 1925.3, 3156.23],
+  "BRE-STO": [775.21, 885.96, 1041.56, 1136.24, 1230.93, 1325.62, 1420.3, 1514.99, 1641.24, 1735.93, 1830.61, 1925.3, 3156.23],
+  "CPH-BER": [391.23, 503.01, 530.95, 562.81, 594.67, 626.53, 658.38, 690.24, 722.1, 753.96, 785.81, 817.67, 1061.91],
+  "CPH-BOC": [697.59, 838.35, 1050.52, 1113.56, 1176.59, 1239.62, 1302.65, 1365.68, 1428.71, 1491.75, 1554.78, 1617.81, 2101.05],
+  "CPH-BRE": [380.36, 489.04, 516.21, 547.18, 578.15, 609.12, 640.1, 671.07, 702.04, 733.01, 763.99, 794.96, 1032.41],
+  "CPH-DOR": [697.59, 838.35, 1050.52, 1113.56, 1176.59, 1239.62, 1302.65, 1365.68, 1428.71, 1491.75, 1554.78, 1617.81, 2101.05],
+  "CPH-FFM": [828.0, 983.25, 1267.88, 1343.95, 1420.02, 1496.09, 1572.16, 1648.24, 1724.31, 1800.38, 1876.45, 1952.53, 2535.75],
+  "CPH-GOT": [414.0, 517.5, 646.88, 685.69, 724.5, 763.31, 802.12, 840.94, 879.75, 918.56, 957.37, 996.19, 1293.75],
+  "CPH-HAM": [362.25, 465.75, 491.62, 521.12, 550.62, 580.12, 609.62, 639.11, 668.61, 698.11, 727.6, 757.1, 983.25],
+  "CPH-HAN": [380.36, 489.04, 516.21, 547.18, 578.15, 609.12, 640.1, 671.07, 702.04, 733.01, 763.99, 794.96, 1032.41],
+  "CPH-STO": [672.75, 776.25, 957.37, 1014.82, 1072.26, 1129.7, 1187.14, 1244.59, 1302.03, 1359.47, 1416.91, 1474.36, 1914.75],
+  "DOR-CPH": [749.34, 890.1, 1142.33, 1230.2, 1318.07, 1405.94, 1493.82, 1581.69, 1669.56, 1757.43, 1845.3, 1933.17, 2929.05],
+  "DOR-GOT": [852.84, 993.6, 1364.34, 1469.29, 1574.23, 1679.18, 1784.13, 1889.08, 1994.03, 2098.98, 2203.93, 2308.88, 3498.3],
+  "DOR-OSL": [1059.84, 1200.6, 1586.34, 1708.37, 1830.4, 1952.42, 2074.45, 2196.48, 2318.5, 2440.53, 2562.56, 2684.58, 4067.55],
+  "DOR-STO": [1059.84, 1200.6, 1586.34, 1708.37, 1830.4, 1952.42, 2074.45, 2196.48, 2318.5, 2440.53, 2562.56, 2684.58, 4067.55],
+  "FFM-CPH": [879.75, 1035, 1311.86, 1412.77, 1513.69, 1614.6, 1715.51, 1816.43, 1917.34, 2018.25, 2119.16, 2220.07, 3363.75],
+  "FFM-STO": [1112.83, 1260.63, 1665.66, 1793.79, 1921.92, 2050.05, 2178.17, 2306.3, 2434.43, 2562.56, 2690.68, 2818.81, 4270.93],
+  "GOT-BER": [503.01, 614.79, 710.92, 751.16, 791.4, 831.64, 871.88, 912.12, 952.37, 992.61, 1032.85, 1073.09, 1341.36],
+  "GOT-BOC": [697.59, 838.35, 1113.56, 1176.59, 1239.62, 1302.65, 1365.68, 1428.71, 1491.75, 1554.78, 1617.81, 1680.84, 2101.05],
+  "GOT-BRE": [489.04, 597.71, 691.17, 730.3, 769.42, 808.54, 847.66, 886.79, 925.91, 965.03, 1004.16, 1043.28, 1304.1],
+  "GOT-CPH": [362.25, 465.75, 493.69, 521.64, 549.58, 577.53, 605.47, 633.42, 661.36, 689.31, 717.25, 745.2, 931.5],
+  "GOT-DOR": [697.59, 838.35, 1113.56, 1176.59, 1239.62, 1302.65, 1365.68, 1428.71, 1491.75, 1554.78, 1617.81, 1680.84, 2101.05],
+  "GOT-HAM": [465.75, 569.25, 658.26, 695.52, 732.78, 770.04, 807.3, 844.56, 881.82, 919.08, 956.34, 993.6, 1242],
+  "GOT-HAN": [489.04, 597.71, 691.17, 730.3, 769.42, 808.54, 847.66, 886.79, 925.91, 965.03, 1004.16, 1043.28, 1304.1],
+  "HAM-CPH": [414.0, 517.5, 597.71, 652.05, 706.39, 760.72, 815.06, 869.4, 941.85, 996.19, 1050.52, 1104.86, 1811.25],
+  "HAM-GOT": [517.5, 621, 785.56, 856.98, 928.39, 999.81, 1071.22, 1142.64, 1237.86, 1309.27, 1380.69, 1452.1, 2380.5],
+  "HAM-OSL": [724.5, 828.0, 973.42, 1061.91, 1150.4, 1238.89, 1327.39, 1415.88, 1533.87, 1622.36, 1710.85, 1799.35, 2949.75],
+  "HAM-STO": [724.5, 828.0, 973.42, 1061.91, 1150.4, 1238.89, 1327.39, 1415.88, 1533.87, 1622.36, 1710.85, 1799.35, 2949.75],
+  "HAN-CPH": [476.1, 595.12, 687.37, 749.86, 812.35, 874.83, 937.32, 999.81, 1083.13, 1145.62, 1208.1, 1270.59, 2082.94],
+  "HAN-GOT": [569.25, 683.1, 864.12, 942.68, 1021.23, 1099.79, 1178.35, 1256.9, 1361.65, 1440.2, 1518.76, 1597.32, 2618.55],
+  "HAN-OSL": [760.72, 869.4, 1022.09, 1115.01, 1207.92, 1300.84, 1393.76, 1486.67, 1610.56, 1703.48, 1796.4, 1889.31, 3097.24],
+  "HAN-STO": [760.72, 869.4, 1022.09, 1115.01, 1207.92, 1300.84, 1393.76, 1486.67, 1610.56, 1703.48, 1796.4, 1889.31, 3097.24],
+  "OSL-BER": [726.57, 838.35, 829.41, 876.36, 923.3, 970.25, 1017.2, 1064.15, 1111.09, 1158.04, 1204.99, 1251.94, 1564.92],
+  "OSL-BOC": [1008.09, 1148.85, 1360.4, 1437.41, 1514.41, 1591.42, 1668.42, 1745.42, 1822.43, 1899.43, 1976.44, 2053.44, 2566.8],
+  "OSL-BRE": [706.39, 815.06, 806.37, 852.01, 897.66, 943.3, 988.94, 1034.59, 1080.23, 1125.87, 1171.52, 1217.16, 1521.45],
+  "OSL-CPH": [517.5, 621, 658.26, 695.52, 732.78, 770.04, 807.3, 844.56, 881.82, 919.08, 956.34, 993.6, 1242],
+  "OSL-DOR": [1008.09, 1148.85, 1360.4, 1437.41, 1514.41, 1591.42, 1668.42, 1745.42, 1822.43, 1899.43, 1976.44, 2053.44, 2566.8],
+  "OSL-HAM": [672.75, 776.25, 767.97, 811.44, 854.91, 898.38, 941.85, 985.32, 1028.79, 1072.26, 1115.73, 1159.2, 1449],
+  "OSL-HAN": [706.39, 815.06, 806.37, 852.01, 897.66, 943.3, 988.94, 1034.59, 1080.23, 1125.87, 1171.52, 1217.16, 1521.45],
+  "STO-BER": [726.57, 838.35, 829.41, 876.36, 923.3, 970.25, 1017.2, 1064.15, 1111.09, 1158.04, 1204.99, 1251.94, 1564.92],
+  "STO-BOC": [1008.09, 1148.85, 1360.4, 1437.41, 1514.41, 1591.42, 1668.42, 1745.42, 1822.43, 1899.43, 1976.44, 2053.44, 2566.8],
+  "STO-BRE": [706.39, 815.06, 806.37, 852.01, 897.66, 943.3, 988.94, 1034.59, 1080.23, 1125.87, 1171.52, 1217.16, 1521.45],
+  "STO-CPH": [517.5, 621, 658.26, 695.52, 732.78, 770.04, 807.3, 844.56, 881.82, 919.08, 956.34, 993.6, 1242],
+  "STO-DOR": [1008.09, 1148.85, 1360.4, 1437.41, 1514.41, 1591.42, 1668.42, 1745.42, 1822.43, 1899.43, 1976.44, 2053.44, 2566.8],
+  "STO-FFM": [1108.9, 1263.73, 1496.44, 1581.15, 1665.85, 1750.56, 1835.26, 1919.97, 2004.67, 2089.38, 2174.08, 2258.78, 2823.48],
+  "STO-HAM": [672.75, 776.25, 767.97, 811.44, 854.91, 898.38, 941.85, 985.32, 1028.79, 1072.26, 1115.73, 1159.2, 1449],
+  "STO-HAN": [706.39, 815.06, 806.37, 852.01, 897.66, 943.3, 988.94, 1034.59, 1080.23, 1125.87, 1171.52, 1217.16, 1521.45]
 };
 
 /* ============================================================
-   LOGIK
+   LOGIC
    ============================================================ */
 const fromSel = document.getElementById("from");
 const toSel = document.getElementById("to");
 const volumeEl = document.getElementById("volume");
 const palletsEl = document.getElementById("pallets");
 const currencyEl = document.getElementById("currency");
+const twowaysBtn = document.getElementById("twoways");
 const resultEl = document.getElementById("result");
-const truckEl = document.getElementById("truck");
+const vehiclesEl = document.getElementById("vehicles");
+
+let twoWays = false;
 
 function fillSelect(sel) {
   CITIES.forEach(function (c) {
     const opt = document.createElement("option");
     opt.value = c.id;
     opt.textContent = (c.umschlag ? "★ " : "") + c.name;
-    if (c.umschlag) {
-      opt.style.fontWeight = "700";
-      opt.style.background = "#fdeaec";
-      opt.style.color = "#c8102e";
-    }
+    if (c.umschlag) opt.className = "umschlag";
     sel.appendChild(opt);
   });
 }
 fillSelect(fromSel);
 fillSelect(toSel);
-toSel.value = "MMX"; // start med to forskellige byer
+toSel.selectedIndex = 1;
 
 function nameOf(id) {
   const c = CITIES.find(function (x) { return x.id === id; });
   return c ? c.name : id;
 }
 
-/* m³ udfyldt -> pallepladser = ceil(m³ / 2), felt låses. */
+/* Column index in PCOLS for a given pallet count (1..33). */
+function colIndex(n) {
+  if (n <= 4) return 0;
+  if (n <= 8) return 1;
+  if (n <= 18) return n - 7;   /* 9..18 -> 2..11 */
+  return 12;                    /* 19..33 -> full trailer */
+}
+
+function vehicleName(idx) {
+  if (idx === 0) return "Van";
+  if (idx === 1) return "Curtain van";
+  if (idx === 12) return "Full trailer (33 pallets)";
+  return "Trailer (" + PCOLS[idx] + " pallets)";
+}
+
+/* Price + vehicle breakdown for one leg (EUR). */
+function legFor(rates, n) {
+  let price = 0;
+  const veh = {};
+  const full = Math.floor(n / FULL_TRAILER);
+  let rem = n;
+  if (full > 0) {
+    price += full * rates[12];
+    veh["Full trailer (33 pallets)"] = full;
+    rem = n - full * FULL_TRAILER;
+  }
+  if (rem > 0) {
+    const idx = colIndex(rem);
+    price += rates[idx];
+    const nm = vehicleName(idx);
+    veh[nm] = (veh[nm] || 0) + 1;
+  }
+  return { price: price, vehicles: veh };
+}
+
+function mergeVehicles(a, b) {
+  const out = Object.assign({}, a);
+  Object.keys(b).forEach(function (k) { out[k] = (out[k] || 0) + b[k]; });
+  return out;
+}
+
+function vehiclesText(veh) {
+  return Object.keys(veh).map(function (k) {
+    return veh[k] + " × " + k;
+  }).join(" + ");
+}
+
 function syncPalletsFromVolume() {
   const raw = volumeEl.value.trim();
   const v = parseFloat(raw);
@@ -353,61 +445,12 @@ function syncPalletsFromVolume() {
   }
 }
 
-/* EUR-totalpris for ÉT læs (1..33 pallepladser) på en rute. */
-function loadPriceEUR(prices, n) {
-  if (n <= 4) return prices[0];
-  if (n <= 8) return prices[1];
-  if (n <= 18) return prices[n - 7]; // 9->idx2 ... 18->idx11
-  return prices[12];                 // full trailer (op til 33)
-}
-
-/* Samlet EUR-pris: fyld fulde trailere, resten efter sin egen kolonne. */
-function totalPriceEUR(prices, n) {
-  let rem = n, sum = 0;
-  while (rem > TRAILER) { sum += prices[12]; rem -= TRAILER; }
-  sum += loadPriceEUR(prices, rem);
-  return sum;
-}
-
-/* Lastbil-plan: fulde trailere + mindste bil der rummer resten. */
-function truckPlan(n) {
-  const plan = [];
-  let rem = n;
-  while (rem > TRAILER) { plan.push(TRAILER); rem -= TRAILER; }
-  if (rem > 0) plan.push(rem <= 8 ? 8 : rem <= 18 ? 18 : TRAILER);
-  return plan;
-}
-function truckNameFor(cap) { return cap <= 8 ? "Liftbil" : "Lastbil"; }
-
-function describeTrucks(plan) {
-  /* grupper ens biler bevarende rækkefølge (størst først) */
-  const order = [];
-  const counts = {};
-  plan.slice().sort(function (a, b) { return b - a; }).forEach(function (cap) {
-    if (!(cap in counts)) { counts[cap] = 0; order.push(cap); }
-    counts[cap]++;
-  });
-  return order.map(function (cap) {
-    return counts[cap] + "× " + truckNameFor(cap) + " (" + cap + " pl.)";
-  }).join(" + ");
-}
-
-function updateTruck(pallets) {
-  if (!pallets || pallets < 1 || pallets > MAX_PALLETS) {
-    truckEl.className = "truck";
-    truckEl.innerHTML = "";
-    return;
-  }
-  const plan = truckPlan(pallets);
-  const label = plan.length > 1 ? "Kræver " + plan.length + " lastbiler: " : "Kræver: ";
-  truckEl.className = "truck show";
-  truckEl.innerHTML = label + '<span class="t-name">' + describeTrucks(plan) + "</span>";
-}
-
-function formatMoney(amount) {
-  return new Intl.NumberFormat("da-DK", {
+function formatMoney(amountEur) {
+  const cur = currencyEl.value;
+  const amount = amountEur * (FX[cur] || 1);
+  return new Intl.NumberFormat("en-GB", {
     style: "currency",
-    currency: currencyEl.value,
+    currency: cur,
     maximumFractionDigits: 0
   }).format(amount);
 }
@@ -417,6 +460,8 @@ function showEmpty(msg, route) {
   resultEl.innerHTML =
     (route ? '<div class="label-sm">' + route + '</div>' : "") +
     '<div class="amount">' + msg + '</div>';
+  vehiclesEl.className = "vehicles";
+  vehiclesEl.innerHTML = "";
 }
 
 function calculate() {
@@ -425,30 +470,55 @@ function calculate() {
   const from = fromSel.value;
   const to = toSel.value;
   const route = nameOf(from) + " &rarr; " + nameOf(to);
-  const pallets = parseInt(palletsEl.value, 10);
-  updateTruck(pallets);
 
-  if (from === to) { showEmpty("Vælg to forskellige byer"); return; }
-  if (!pallets || pallets < 1) { showEmpty("Angiv antal pallepladser", route); return; }
+  if (from === to) { showEmpty("Select two different cities"); return; }
+
+  const pallets = parseInt(palletsEl.value, 10);
+  if (!pallets || pallets < 1) { showEmpty("Enter the number of pallets", route); return; }
   if (pallets > MAX_PALLETS) {
-    showEmpty("Maks. " + MAX_PALLETS + " pallepladser", route); return;
+    showEmpty("Max. " + MAX_PALLETS + " pallets", route); return;
   }
 
-  const prices = RATES_EUR[from + "-" + to];
-  if (!prices) { showEmpty("Pris ikke tilgængelig for denne rute", route); return; }
+  const outRates = RATES_EUR[from + "-" + to];
+  if (!outRates) { showEmpty("Price not available for this route", route); return; }
 
-  const cur = currencyEl.value;
-  const totalEUR = totalPriceEUR(prices, pallets);
-  const total = totalEUR * FX[cur];
+  const out = legFor(outRates, pallets);
+  const palLabel = pallets + (pallets === 1 ? " pallet" : " pallets");
+
+  if (!twoWays) {
+    resultEl.className = "result";
+    resultEl.innerHTML =
+      '<div class="label-sm">' + route + " · " + palLabel + '</div>' +
+      '<div class="amount">' + formatMoney(out.price) + '</div>' +
+      '<div class="label-sm">one way</div>';
+    vehiclesEl.className = "vehicles show";
+    vehiclesEl.innerHTML = 'Vehicle: <span class="v-name">' + vehiclesText(out.vehicles) + "</span>";
+    return;
+  }
+
+  /* 2-ways: outbound + return */
+  const retRates = RATES_EUR[to + "-" + from];
+  if (!retRates) {
+    showEmpty("Return price (" + nameOf(to) + " → " + nameOf(from) + ") not available", route);
+    return;
+  }
+  const ret = legFor(retRates, pallets);
+  const total = out.price + ret.price;
+  const allVeh = mergeVehicles(out.vehicles, ret.vehicles);
 
   resultEl.className = "result";
   resultEl.innerHTML =
-    '<div class="label-sm">' + route + " · " + pallets +
-      (pallets === 1 ? " palleplads" : " pallepladser") + '</div>' +
+    '<div class="label-sm">Round trip · ' + palLabel + '</div>' +
+    '<div class="legs">' +
+      '<div class="leg"><span>' + nameOf(from) + " &rarr; " + nameOf(to) +
+        '</span><span class="v">' + formatMoney(out.price) + '</span></div>' +
+      '<div class="leg"><span>' + nameOf(to) + " &rarr; " + nameOf(from) +
+        '</span><span class="v">' + formatMoney(ret.price) + '</span></div>' +
+    '</div>' +
     '<div class="amount">' + formatMoney(total) + '</div>' +
-    '<div class="label-sm">≈ ' + formatMoney(total / pallets) + " pr. palleplads · 1 vej</div>" +
-    '<div class="label-sm">(' + new Intl.NumberFormat("da-DK").format(totalEUR) +
-      " EUR · kurs " + new Intl.NumberFormat("da-DK").format(FX[cur]) + ")</div>";
+    '<div class="label-sm">total · both ways</div>';
+  vehiclesEl.className = "vehicles show";
+  vehiclesEl.innerHTML = 'Vehicles (round trip): <span class="v-name">' + vehiclesText(allVeh) + "</span>";
 }
 
 fromSel.addEventListener("change", calculate);
@@ -456,6 +526,14 @@ toSel.addEventListener("change", calculate);
 volumeEl.addEventListener("input", calculate);
 palletsEl.addEventListener("input", calculate);
 currencyEl.addEventListener("change", calculate);
+
+twowaysBtn.addEventListener("click", function () {
+  twoWays = !twoWays;
+  twowaysBtn.classList.toggle("active", twoWays);
+  twowaysBtn.setAttribute("aria-pressed", twoWays ? "true" : "false");
+  calculate();
+});
+
 document.getElementById("swap").addEventListener("click", function () {
   const tmp = fromSel.value;
   fromSel.value = toSel.value;

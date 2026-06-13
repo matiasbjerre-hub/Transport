@@ -1,45 +1,51 @@
-# Særtransport-beregner (Rent.Group)
+# Transport Cost Calculator (Rent.Group)
 
-Selvstændig hjemmeside til at udregne transportomkostninger ved **særtransporter**
-mellem byerne i et Umschlag (start: Københavns Umschlag).
+A standalone web page that calculates transport costs between cities, based on
+the **DDSJ 2026 international price list**.
 
-## Sådan kører/redigerer du den
+## Run / edit
 
-Ingen build, ingen server, ingen afhængigheder. Bare:
+No build, no server, no dependencies:
 
-1. `git pull` på din laptop
-2. Åbn `index.html` direkte i en browser (dobbeltklik)
-3. Rediger samme fil i din editor og genindlæs browseren
+1. `git pull`
+2. Open `index.html` directly in a browser (double-click)
+3. Edit the same file in your editor and reload the browser
 
-## Sådan fortsætter du
+The live version is deployed automatically to GitHub Pages on every push:
+**https://matiasbjerre-hub.github.io/Transport/**
 
-Alt det du skal røre ved ligger øverst i `<script>` i `index.html`:
+## What you can edit
 
-- **`CITIES`** — byerne i dropdownen. `{ id, name, umschlag }`. Sæt
-  `umschlag: true` på de byer der indgår i Københavns Umschlag (markeres med
-  ★ + farve). Pt. Umschlag = Berlin, Bocholt, Hannover, Hamborg. København er
-  ikke selv en Umschlag-by — den deler Hamborgs umschlag.
-- **`FX`** — valutakurser, `1 EUR = X`. Pt. `DKK: 7.46`, `SEK: 11.34`.
-  Opdateres manuelt.
-- **`RATES_EUR`** — pristabellen, **totalpris pr. tur i EUR** (kilde: Party
-  Rent). Nøgleformat `"FRA-TIL"` med by-`id`'er. Værdien er et array med
-  totalpriser for kolonnerne `[4, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18,
-  "Full trailer"]`. Beløb omregnes til valgt valuta via `FX`.
-- **`TRUCKS` / `TRAILER` / `MAX_PALLETS`** — lastbil-flåden (Liftbil 8,
-  Lastbil 18, Lastbil 33), største læs pr. trailer (33) og maks. input.
-- **`M3_PER_PALLET`** — m³ pr. palleplads (2). Udfyldes m³, beregnes
-  pallepladser som `ceil(m³ / 2)`.
+Everything lives at the top of `<script>` in `index.html`:
 
-Pris- og lastbil-logik: læs ≤ 33 pallepladser = én bil; større læs fordeles på
-flere (fulde trailere + mindste bil der rummer resten), og prisen lægges sammen.
+- **`CITIES`** — the dropdown cities. `{ id, name, umschlag }`. Set
+  `umschlag: true` to mark a Copenhagen Umschlag city (shown with ★ + colour).
+  Currently: Hamburg, Berlin, Bocholt, Hannover.
+- **`FX`** — exchange rates, `1 EUR = X`. Currently `DKK: 7.46`, `SEK: 11.34`.
+  Update manually. The currency selector (EUR/DKK/SEK) converts via `FX`.
+- **`RATES_EUR`** — the price table, **total price per transport in EUR**.
+  Key `"FROM-TO"` with city ids; value is an array of prices for the columns
+  `PCOLS = [4, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 33]` (last = full
+  trailer).
+- **`PCOLS` / `FULL_TRAILER` / `MAX_PALLETS`** — pallet columns, full-trailer
+  size (33) and the maximum input.
+- **`M3_PER_PALLET`** — m³ per pallet place (2). When m³ is entered, pallets are
+  derived as `ceil(m³ / 2)`.
 
-Kilde for priserne: `Transport_Prices_Malmo_.xlsx`, ark **"offer"** (EUR).
+## Behaviour
 
-## Næste skridt
+- **Source:** DDSJ 2026 international list only. **All routes via Malmö are
+  excluded.**
+- **Vehicle** is chosen from the pallet count: Van (≤4), Curtain van (≤8),
+  Trailer (9–18), Full trailer (33). Loads above 33 pallets are split across
+  several vehicles (full trailers + the smallest vehicle for the remainder) and
+  the prices are summed.
+- **2-ways** button: adds the return leg (destination → origin) and shows a
+  total for both directions.
+- The page is in English.
 
-- Berlin og Hannover er med i dropdownen (Umschlag), men har endnu ingen
-  priser i listen — tilføj dem i `RATES_EUR` når de foreligger.
-- Umschlag-model: Kbh. deler Hamborgs umschlag, så reelt betales kun
-  Hamborg↔Kbh. for gods fra Umschlag-byerne. Kan bygges som en særskilt
-  beregning senere.
-- Verificér valutakurserne i `FX` mod de aktuelle.
+## Next steps
+
+- Add prices for any missing routes/cities in `RATES_EUR` as they become
+  available.
+- Verify the exchange rates in `FX` against current rates.
