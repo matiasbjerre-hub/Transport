@@ -77,6 +77,7 @@
     text-transform: uppercase;
     letter-spacing: 0.03em;
   }
+  .opt { font-weight: 500; color: var(--muted); text-transform: none; letter-spacing: 0; }
   select, input {
     width: 100%;
     padding: 0.75rem 0.9rem;
@@ -93,6 +94,7 @@
     border-color: var(--accent);
     box-shadow: 0 0 0 3px rgba(200,16,46,0.12);
   }
+  input[readonly] { background: #f5f5f4; color: var(--muted); cursor: not-allowed; }
   .row { display: flex; gap: 1rem; align-items: flex-end; }
   .row .field { flex: 1; margin-bottom: 0; }
   .swap {
@@ -116,19 +118,9 @@
     background: linear-gradient(135deg, #fafafa, #f0f0ef);
     border: 1px dashed var(--line);
   }
-  .result .amount {
-    font-size: 2rem;
-    font-weight: 700;
-    color: var(--brand);
-  }
+  .result .amount { font-size: 2rem; font-weight: 700; color: var(--brand); }
   .result .label-sm { font-size: 0.8rem; color: var(--muted); }
   .result.empty .amount { color: var(--muted); font-weight: 600; font-size: 1.1rem; }
-  .opt { font-weight: 500; color: var(--muted); text-transform: none; letter-spacing: 0; }
-  input[readonly] {
-    background: #f5f5f4;
-    color: var(--muted);
-    cursor: not-allowed;
-  }
   .truck {
     display: none;
     margin-top: 0.75rem;
@@ -141,10 +133,21 @@
   }
   .truck.show { display: block; }
   .truck .t-name { font-weight: 700; color: var(--brand); }
-  .truck.warn {
-    border-color: var(--accent);
-    background: #fef5f6;
+  .legend {
+    font-size: 0.78rem;
+    color: var(--muted);
+    margin-top: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+  }
+  .chip-umschlag {
+    display: inline-block;
+    font-weight: 700;
     color: var(--accent);
+    background: #fdeaec;
+    border-radius: 6px;
+    padding: 0.05rem 0.4rem;
   }
   .note {
     font-size: 0.8rem;
@@ -192,7 +195,14 @@
         </div>
         <div class="field">
           <label for="pallets">Antal pallepladser</label>
-          <input type="number" id="pallets" min="1" max="48" step="1" value="1">
+          <input type="number" id="pallets" min="1" max="132" step="1" value="1">
+        </div>
+        <div class="field">
+          <label for="currency">Valuta</label>
+          <select id="currency">
+            <option value="DKK">DKK</option>
+            <option value="SEK">SEK</option>
+          </select>
         </div>
       </div>
 
@@ -202,12 +212,17 @@
 
       <div class="truck" id="truck"></div>
 
+      <div class="legend">
+        <span class="chip-umschlag">★ By</span>
+        indgår i Københavns Umschlag (deler Hamborgs umschlag).
+      </div>
+
       <div class="note">
-        <strong>Bemærk:</strong> Priser er pr. tur (1 vej) inkl. DMT og hentet fra
-        prislisten i DKK (Börje Jonsson). Pris pr. palle falder med antal paller
-        (mængderabat). Udfyldes m³, beregnes pallepladser automatisk som m³ ÷ 2
-        (rundet op). Maks. 48 pallepladser pr. transport. Kun ruter med en fast
-        pris kan beregnes.
+        <strong>Bemærk:</strong> Priser er pr. tur (1 vej), kilde: Party Rent
+        prisliste i <strong>EUR</strong>, omregnet til valgt valuta med faste
+        kurser (se toppen af <code>&lt;script&gt;</code>). Udfyldes m³, beregnes
+        pallepladser automatisk som m³ ÷ 2 (rundet op). Læs over 33 pallepladser
+        fordeles på flere lastbiler.
       </div>
     </div>
   </main>
@@ -219,57 +234,88 @@
 <script>
 /* ============================================================
    KONFIGURATION
-   ------------------------------------------------------------
-   BYER: De byer/destinationer der findes i prislisten.
-   'id' bruges i RATES-tabellen nedenfor.
    ============================================================ */
+
+/* BYER. 'umschlag: true' = del af Københavns Umschlag (markeres).
+   Kbh. er ikke selv en Umschlag-by — den deler Hamborgs umschlag. */
 const CITIES = [
-  { id: "KBH", name: "København" },
-  { id: "STO", name: "Stockholm" },
-  { id: "MMA", name: "Malmö" },
-  { id: "GOT", name: "Göteborg" }
+  { id: "CPH",  name: "København" },
+  { id: "MMX",  name: "Malmö" },
+  { id: "GBG",  name: "Göteborg" },
+  { id: "STHM", name: "Stockholm" },
+  { id: "OSLO", name: "Oslo" },
+  { id: "HH",   name: "Hamborg",   umschlag: true },
+  { id: "BER",  name: "Berlin",    umschlag: true },
+  { id: "BOH",  name: "Bocholt",   umschlag: true },
+  { id: "HAN",  name: "Hannover",  umschlag: true },
+  { id: "FFM",  name: "Frankfurt" }
 ];
 
-/* ============================================================
-   PRISTABEL — pris PR. PALLE (DKK), 1 vej inkl. DMT
-   ------------------------------------------------------------
-   Kilde: Börje Jonsson prisliste, ark "Prisliste DKK".
-   Nøgle: "FRA-TIL". Værdi: array med pris pr. palle for hvert
-   palle-interval i BRACKETS-rækkefølgen nedenfor.
-   Samlet pris = pris pr. palle × antal paller.
-   Kun ruter der findes i listen kan beregnes.
-   ============================================================ */
-const BRACKETS = [1, 2, 3, 4, 5, 6, 7, 8, "9-17", "18-29", "30-48"];
-const MAX_PALLETS = 48;
+/* VALUTAKURSER — 1 EUR = X. Juster frit (opdateres manuelt). */
+const FX = { DKK: 7.46, SEK: 11.34 };
 
-/* En palleplads svarer til 2 m³. */
-const M3_PER_PALLET = 2;
-
-/* Lastbiler — sorteret efter kapacitet (pallepladser), mindste først. */
+/* STØRSTE LÆS pr. lastbil (pallepladser) og lastbil-flåde. */
+const TRAILER = 33;
 const TRUCKS = [
   { name: "Liftbil", capacity: 8 },
   { name: "Lastbil", capacity: 18 },
   { name: "Lastbil", capacity: 33 }
 ];
-
-const RATES = {
-  "MMA-STO": [1037.32, 928.08, 677.47, 646.26, 625.14, 552.62, 452.56, 452.56, 406.67, 385.55, 374.54],   // Malmö → Stockholm
-  "MMA-GOT": [758.25, 537.02, 421.35, 383.72, 351.59, 312.11, 290.08, 290.08, 223.99, 213.89, 192.78],     // Malmö → Göteborg
-  "STO-MMA": [704.09, 599.44, 490.20, 469.09, 395.65, 333.23, 302.02, 302.02, 269.89, 249.69, 235.00],     // Stockholm → Malmö
-  "STO-KBH": [1326.48, 741.73, 549.87, 516.82, 499.38, 441.55, 361.68, 361.68, 324.05, 307.52, 300.18],    // Stockholm → København
-  "KBH-STO": [1659.71, 1484.37, 1083.22, 998.76, 1033.65, 890.44, 725.20, 725.20, 650.85, 615.96, 600.36], // København → Stockholm
-  "GOT-MMA": [604.03, 429.61, 335.98, 307.52, 359.85, 239.59, 207.46, 207.46, 188.19, 177.17, 171.66]      // Göteborg → Malmö
-};
-
-const CURRENCY = "DKK";
+const MAX_PALLETS = 132;   /* ~4 fulde trailere */
+const M3_PER_PALLET = 2;
 
 /* ============================================================
-   LOGIK — behøver normalt ikke ændres
+   PRISTABEL — TOTALPRIS i EUR pr. tur (Party Rent).
+   Nøgle: "FRA-TIL". Array-kolonner (pallepladser):
+   [4, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, "Full trailer"]
+   Berlin (BER) og Hannover (HAN) har ingen priser i listen endnu.
+   ============================================================ */
+const RATES_EUR = {
+  "HH-CPH":   [400, 500, 578, 630, 682, 735, 788, 840, 910, 963, 1015, 1068, 1750],
+  "HH-GBG":   [500, 600, 759, 828, 897, 966, 1035, 1104, 1196, 1265, 1334, 1403, 2300],
+  "HH-OSLO":  [700, 800, 940, 1026, 1112, 1197, 1282, 1368, 1482, 1568, 1653, 1738, 2850],
+  "HH-MMX":   [450, 550, 610, 666, 722, 777, 832, 888, 962, 1018, 1073, 1128, 1850],
+  "HH-STHM":  [700, 800, 940, 1026, 1112, 1197, 1282, 1368, 1482, 1568, 1653, 1738, 2850],
+  "BOH-CPH":  [724, 860, 1104, 1189, 1274, 1358, 1443, 1528, 1613, 1698, 1783, 1868, 2830],
+  "BOH-GBG":  [824, 960, 1318, 1420, 1521, 1622, 1724, 1825, 1927, 2028, 2129, 2231, 3380],
+  "BOH-OSLO": [1024, 1160, 1533, 1651, 1768, 1886, 2004, 2122, 2240, 2358, 2476, 2594, 3930],
+  "BOH-MMX":  [774, 910, 1143, 1231, 1318, 1406, 1494, 1582, 1670, 1758, 1846, 1934, 2930],
+  "BOH-STHM": [1024, 1160, 1533, 1651, 1768, 1886, 2004, 2122, 2240, 2358, 2476, 2594, 3930],
+  "FFM-CPH":  [850, 1000, 1268, 1365, 1462, 1560, 1658, 1755, 1852, 1950, 2048, 2145, 3250],
+  "FFM-MMX":  [900, 1050, 1306, 1407, 1508, 1608, 1708, 1809, 1909, 2010, 2110, 2211, 3350],
+  "CPH-BOH":  [674, 810, 1015, 1076, 1137, 1198, 1259, 1320, 1380, 1441, 1502, 1563, 2030],
+  "CPH-FFM":  [800, 950, 1225, 1298, 1372, 1446, 1519, 1592, 1666, 1740, 1813, 1886, 2450],
+  "CPH-GBG":  [400, 500, 625, 662, 700, 738, 775, 812, 850, 888, 925, 962, 1250],
+  "CPH-HH":   [350, 450, 475, 504, 532, 560, 589, 618, 646, 674, 703, 732, 950],
+  "CPH-STHM": [650, 750, 925, 980, 1036, 1092, 1147, 1202, 1258, 1314, 1369, 1424, 1850],
+  "MMX-BOH":  [674, 810, 1076, 1137, 1198, 1259, 1320, 1380, 1441, 1502, 1563, 1624, 2030],
+  "MMX-GBG":  [400, 500, 662, 700, 738, 775, 812, 850, 888, 925, 962, 1000, 1250],
+  "MMX-FFM":  [800, 950, 1298, 1372, 1446, 1519, 1592, 1666, 1740, 1813, 1886, 1960, 2450],
+  "MMX-HH":   [350, 450, 504, 532, 560, 589, 618, 646, 674, 703, 732, 760, 950],
+  "MMX-OSLO": [650, 750, 980, 1036, 1092, 1147, 1202, 1258, 1314, 1369, 1424, 1480, 1850],
+  "MMX-STHM": [650, 750, 980, 1036, 1092, 1147, 1202, 1258, 1314, 1369, 1424, 1480, 1850],
+  "GBG-BOH":  [674, 810, 1076, 1137, 1198, 1259, 1320, 1380, 1441, 1502, 1563, 1624, 2030],
+  "GBG-CPH":  [350, 450, 477, 504, 531, 558, 585, 612, 639, 666, 693, 720, 900],
+  "GBG-HH":   [450, 550, 636, 672, 708, 744, 780, 816, 852, 888, 924, 960, 1200],
+  "GBG-MMX":  [350, 450, 477, 504, 531, 558, 585, 612, 639, 666, 693, 720, 900],
+  "STHM-BOH": [974, 1110, 1314, 1389, 1463, 1538, 1612, 1686, 1761, 1835, 1910, 1984, 2480],
+  "STHM-CPH": [500, 600, 636, 672, 708, 744, 780, 816, 852, 888, 924, 960, 1200],
+  "STHM-HH":  [650, 750, 742, 784, 826, 868, 910, 952, 994, 1036, 1078, 1120, 1400],
+  "STHM-MMX": [500, 600, 636, 672, 708, 744, 780, 816, 852, 888, 924, 960, 1200],
+  "OSLO-BOH": [974, 1110, 1314, 1389, 1463, 1538, 1612, 1686, 1761, 1835, 1910, 1984, 2480],
+  "OSLO-CPH": [500, 600, 636, 672, 708, 744, 780, 816, 852, 888, 924, 960, 1200],
+  "OSLO-HH":  [650, 750, 742, 784, 826, 868, 910, 952, 994, 1036, 1078, 1120, 1400],
+  "OSLO-MMX": [500, 600, 636, 672, 708, 744, 780, 816, 852, 888, 924, 960, 1200]
+};
+
+/* ============================================================
+   LOGIK
    ============================================================ */
 const fromSel = document.getElementById("from");
 const toSel = document.getElementById("to");
 const volumeEl = document.getElementById("volume");
 const palletsEl = document.getElementById("pallets");
+const currencyEl = document.getElementById("currency");
 const resultEl = document.getElementById("result");
 const truckEl = document.getElementById("truck");
 
@@ -277,28 +323,25 @@ function fillSelect(sel) {
   CITIES.forEach(function (c) {
     const opt = document.createElement("option");
     opt.value = c.id;
-    opt.textContent = c.name;
+    opt.textContent = (c.umschlag ? "★ " : "") + c.name;
+    if (c.umschlag) {
+      opt.style.fontWeight = "700";
+      opt.style.background = "#fdeaec";
+      opt.style.color = "#c8102e";
+    }
     sel.appendChild(opt);
   });
 }
 fillSelect(fromSel);
 fillSelect(toSel);
-toSel.selectedIndex = 1; // start med to forskellige byer
+toSel.value = "MMX"; // start med to forskellige byer
 
 function nameOf(id) {
   const c = CITIES.find(function (x) { return x.id === id; });
   return c ? c.name : id;
 }
 
-function bracketIndex(n) {
-  if (n >= 1 && n <= 8) return n - 1;
-  if (n >= 9 && n <= 17) return 8;
-  if (n >= 18 && n <= 29) return 9;
-  if (n >= 30 && n <= 48) return 10;
-  return -1;
-}
-
-/* Hvis m³ er udfyldt: pallepladser = m³ ÷ 2 (rundet op), og feltet låses. */
+/* m³ udfyldt -> pallepladser = ceil(m³ / 2), felt låses. */
 function syncPalletsFromVolume() {
   const raw = volumeEl.value.trim();
   const v = parseFloat(raw);
@@ -310,12 +353,43 @@ function syncPalletsFromVolume() {
   }
 }
 
-/* Vælg mindste lastbil der kan rumme antal pallepladser. */
-function truckFor(pallets) {
-  for (let i = 0; i < TRUCKS.length; i++) {
-    if (pallets <= TRUCKS[i].capacity) return TRUCKS[i];
-  }
-  return null;
+/* EUR-totalpris for ÉT læs (1..33 pallepladser) på en rute. */
+function loadPriceEUR(prices, n) {
+  if (n <= 4) return prices[0];
+  if (n <= 8) return prices[1];
+  if (n <= 18) return prices[n - 7]; // 9->idx2 ... 18->idx11
+  return prices[12];                 // full trailer (op til 33)
+}
+
+/* Samlet EUR-pris: fyld fulde trailere, resten efter sin egen kolonne. */
+function totalPriceEUR(prices, n) {
+  let rem = n, sum = 0;
+  while (rem > TRAILER) { sum += prices[12]; rem -= TRAILER; }
+  sum += loadPriceEUR(prices, rem);
+  return sum;
+}
+
+/* Lastbil-plan: fulde trailere + mindste bil der rummer resten. */
+function truckPlan(n) {
+  const plan = [];
+  let rem = n;
+  while (rem > TRAILER) { plan.push(TRAILER); rem -= TRAILER; }
+  if (rem > 0) plan.push(rem <= 8 ? 8 : rem <= 18 ? 18 : TRAILER);
+  return plan;
+}
+function truckNameFor(cap) { return cap <= 8 ? "Liftbil" : "Lastbil"; }
+
+function describeTrucks(plan) {
+  /* grupper ens biler bevarende rækkefølge (størst først) */
+  const order = [];
+  const counts = {};
+  plan.slice().sort(function (a, b) { return b - a; }).forEach(function (cap) {
+    if (!(cap in counts)) { counts[cap] = 0; order.push(cap); }
+    counts[cap]++;
+  });
+  return order.map(function (cap) {
+    return counts[cap] + "× " + truckNameFor(cap) + " (" + cap + " pl.)";
+  }).join(" + ");
 }
 
 function updateTruck(pallets) {
@@ -324,25 +398,16 @@ function updateTruck(pallets) {
     truckEl.innerHTML = "";
     return;
   }
-  const truck = truckFor(pallets);
-  if (truck) {
-    truckEl.className = "truck show";
-    truckEl.innerHTML =
-      'Kræver: <span class="t-name">' + truck.name + "</span> (" +
-      truck.capacity + " pallepladser)";
-  } else {
-    const biggest = TRUCKS[TRUCKS.length - 1];
-    truckEl.className = "truck show warn";
-    truckEl.innerHTML =
-      "⚠ " + pallets + " pallepladser overstiger største lastbil (" +
-      biggest.capacity + " pallepladser) — kræver flere transporter.";
-  }
+  const plan = truckPlan(pallets);
+  const label = plan.length > 1 ? "Kræver " + plan.length + " lastbiler: " : "Kræver: ";
+  truckEl.className = "truck show";
+  truckEl.innerHTML = label + '<span class="t-name">' + describeTrucks(plan) + "</span>";
 }
 
 function formatMoney(amount) {
   return new Intl.NumberFormat("da-DK", {
     style: "currency",
-    currency: CURRENCY,
+    currency: currencyEl.value,
     maximumFractionDigits: 0
   }).format(amount);
 }
@@ -360,45 +425,37 @@ function calculate() {
   const from = fromSel.value;
   const to = toSel.value;
   const route = nameOf(from) + " &rarr; " + nameOf(to);
-
   const pallets = parseInt(palletsEl.value, 10);
   updateTruck(pallets);
 
-  if (from === to) {
-    showEmpty("Vælg to forskellige byer");
-    return;
-  }
-
-  if (!pallets || pallets < 1) {
-    showEmpty("Angiv antal pallepladser", route);
-    return;
-  }
+  if (from === to) { showEmpty("Vælg to forskellige byer"); return; }
+  if (!pallets || pallets < 1) { showEmpty("Angiv antal pallepladser", route); return; }
   if (pallets > MAX_PALLETS) {
-    showEmpty("Maks. " + MAX_PALLETS + " pallepladser pr. transport", route);
-    return;
+    showEmpty("Maks. " + MAX_PALLETS + " pallepladser", route); return;
   }
 
-  const rates = RATES[from + "-" + to];
-  if (!rates) {
-    showEmpty("Pris ikke tilgængelig for denne rute", route);
-    return;
-  }
+  const prices = RATES_EUR[from + "-" + to];
+  if (!prices) { showEmpty("Pris ikke tilgængelig for denne rute", route); return; }
 
-  const perPallet = rates[bracketIndex(pallets)];
-  const total = perPallet * pallets;
+  const cur = currencyEl.value;
+  const totalEUR = totalPriceEUR(prices, pallets);
+  const total = totalEUR * FX[cur];
 
   resultEl.className = "result";
   resultEl.innerHTML =
     '<div class="label-sm">' + route + " · " + pallets +
-      (pallets === 1 ? " palle" : " paller") + '</div>' +
+      (pallets === 1 ? " palleplads" : " pallepladser") + '</div>' +
     '<div class="amount">' + formatMoney(total) + '</div>' +
-    '<div class="label-sm">' + formatMoney(perPallet) + " pr. palle · 1 vej inkl. DMT</div>";
+    '<div class="label-sm">≈ ' + formatMoney(total / pallets) + " pr. palleplads · 1 vej</div>" +
+    '<div class="label-sm">(' + new Intl.NumberFormat("da-DK").format(totalEUR) +
+      " EUR · kurs " + new Intl.NumberFormat("da-DK").format(FX[cur]) + ")</div>";
 }
 
 fromSel.addEventListener("change", calculate);
 toSel.addEventListener("change", calculate);
 volumeEl.addEventListener("input", calculate);
 palletsEl.addEventListener("input", calculate);
+currencyEl.addEventListener("change", calculate);
 document.getElementById("swap").addEventListener("click", function () {
   const tmp = fromSel.value;
   fromSel.value = toSel.value;
