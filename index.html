@@ -383,7 +383,8 @@ function fillSelect(sel) {
 }
 fillSelect(fromSel);
 fillSelect(toSel);
-toSel.selectedIndex = 1;
+fromSel.value = "HAM"; // default origin: Hamburg
+toSel.value = "CPH";   // default destination: Copenhagen
 
 function nameOf(id) {
   const c = CITIES.find(function (x) { return x.id === id; });
