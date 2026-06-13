@@ -152,14 +152,19 @@
 
       <div class="row">
         <div class="field">
-          <label for="from">Afsender (fra lager)</label>
+          <label for="from">Afsender (fra)</label>
           <select id="from"></select>
         </div>
         <button class="swap" id="swap" title="Byt afsender og modtager">&#8646;</button>
         <div class="field">
-          <label for="to">Modtager (til lager)</label>
+          <label for="to">Modtager (til)</label>
           <select id="to"></select>
         </div>
+      </div>
+
+      <div class="field">
+        <label for="pallets">Antal paller</label>
+        <input type="number" id="pallets" min="1" max="48" step="1" value="1">
       </div>
 
       <div class="result empty" id="result">
@@ -167,9 +172,10 @@
       </div>
 
       <div class="note">
-        <strong>Bemærk:</strong> Prislister er endnu ikke indlæst. Lige nu vises
-        kun ruten. Når du uploader priser, fyldes <code>RATES</code>-tabellen i
-        bunden af denne fil ud, og beregningen aktiveres automatisk.
+        <strong>Bemærk:</strong> Priser er pr. tur (1 vej) inkl. DMT og hentet fra
+        prislisten i DKK (Börje Jonsson). Pris pr. palle falder med antal paller
+        (mængderabat). Maks. 48 paller pr. transport. Kun ruter med en fast pris
+        kan beregnes.
       </div>
     </div>
   </main>
@@ -182,55 +188,70 @@
 /* ============================================================
    KONFIGURATION
    ------------------------------------------------------------
-   LAGRE: De lagre der indgår i Københavns Umschlag.
-   Tilføj/fjern frit. 'id' bruges i RATES-tabellen nedenfor.
+   BYER: De byer/destinationer der findes i prislisten.
+   'id' bruges i RATES-tabellen nedenfor.
    ============================================================ */
-const WAREHOUSES = [
-  { id: "CPH", name: "København" },
-  { id: "BER", name: "Berlin" },
-  { id: "BOC", name: "Bocholt" },
-  { id: "HAN", name: "Hannover" },
-  { id: "HAM", name: "Hamborg" }
+const CITIES = [
+  { id: "KBH", name: "København" },
+  { id: "STO", name: "Stockholm" },
+  { id: "MMA", name: "Malmö" },
+  { id: "GOT", name: "Göteborg" }
 ];
 
 /* ============================================================
-   PRISTABEL (udfyldes senere)
+   PRISTABEL — pris PR. PALLE (DKK), 1 vej inkl. DMT
    ------------------------------------------------------------
-   Pris for en særtransport fra ét lager til et andet.
-   Nøgle: "FRA-TIL"  (fx "CPH-BER").  Værdi: beløb i EUR.
-   Eksempel:
-     "CPH-BER": 850,
-     "BER-CPH": 850,
-   Lad stå tom indtil prislisterne er klar.
+   Kilde: Börje Jonsson prisliste, ark "Prisliste DKK".
+   Nøgle: "FRA-TIL". Værdi: array med pris pr. palle for hvert
+   palle-interval i BRACKETS-rækkefølgen nedenfor.
+   Samlet pris = pris pr. palle × antal paller.
+   Kun ruter der findes i listen kan beregnes.
    ============================================================ */
+const BRACKETS = [1, 2, 3, 4, 5, 6, 7, 8, "9-17", "18-29", "30-48"];
+const MAX_PALLETS = 48;
+
 const RATES = {
-  // "CPH-BER": 0,
+  "MMA-STO": [1037.32, 928.08, 677.47, 646.26, 625.14, 552.62, 452.56, 452.56, 406.67, 385.55, 374.54],   // Malmö → Stockholm
+  "MMA-GOT": [758.25, 537.02, 421.35, 383.72, 351.59, 312.11, 290.08, 290.08, 223.99, 213.89, 192.78],     // Malmö → Göteborg
+  "STO-MMA": [704.09, 599.44, 490.20, 469.09, 395.65, 333.23, 302.02, 302.02, 269.89, 249.69, 235.00],     // Stockholm → Malmö
+  "STO-KBH": [1326.48, 741.73, 549.87, 516.82, 499.38, 441.55, 361.68, 361.68, 324.05, 307.52, 300.18],    // Stockholm → København
+  "KBH-STO": [1659.71, 1484.37, 1083.22, 998.76, 1033.65, 890.44, 725.20, 725.20, 650.85, 615.96, 600.36], // København → Stockholm
+  "GOT-MMA": [604.03, 429.61, 335.98, 307.52, 359.85, 239.59, 207.46, 207.46, 188.19, 177.17, 171.66]      // Göteborg → Malmö
 };
 
-const CURRENCY = "EUR";
+const CURRENCY = "DKK";
 
 /* ============================================================
    LOGIK — behøver normalt ikke ændres
    ============================================================ */
 const fromSel = document.getElementById("from");
 const toSel = document.getElementById("to");
+const palletsEl = document.getElementById("pallets");
 const resultEl = document.getElementById("result");
 
 function fillSelect(sel) {
-  WAREHOUSES.forEach(function (w) {
+  CITIES.forEach(function (c) {
     const opt = document.createElement("option");
-    opt.value = w.id;
-    opt.textContent = w.name;
+    opt.value = c.id;
+    opt.textContent = c.name;
     sel.appendChild(opt);
   });
 }
 fillSelect(fromSel);
 fillSelect(toSel);
-toSel.selectedIndex = 1; // start med to forskellige lagre
+toSel.selectedIndex = 1; // start med to forskellige byer
 
 function nameOf(id) {
-  const w = WAREHOUSES.find(function (x) { return x.id === id; });
-  return w ? w.name : id;
+  const c = CITIES.find(function (x) { return x.id === id; });
+  return c ? c.name : id;
+}
+
+function bracketIndex(n) {
+  if (n >= 1 && n <= 8) return n - 1;
+  if (n >= 9 && n <= 17) return 8;
+  if (n >= 18 && n <= 29) return 9;
+  if (n >= 30 && n <= 48) return 10;
+  return -1;
 }
 
 function formatMoney(amount) {
@@ -241,34 +262,53 @@ function formatMoney(amount) {
   }).format(amount);
 }
 
+function showEmpty(msg, route) {
+  resultEl.className = "result empty";
+  resultEl.innerHTML =
+    (route ? '<div class="label-sm">' + route + '</div>' : "") +
+    '<div class="amount">' + msg + '</div>';
+}
+
 function calculate() {
   const from = fromSel.value;
   const to = toSel.value;
+  const route = nameOf(from) + " &rarr; " + nameOf(to);
 
   if (from === to) {
-    resultEl.className = "result empty";
-    resultEl.innerHTML = '<div class="amount">Vælg to forskellige lagre</div>';
+    showEmpty("Vælg to forskellige byer");
     return;
   }
 
-  const rate = RATES[from + "-" + to];
-  const route = nameOf(from) + " &rarr; " + nameOf(to);
-
-  if (typeof rate === "number") {
-    resultEl.className = "result";
-    resultEl.innerHTML =
-      '<div class="label-sm">' + route + '</div>' +
-      '<div class="amount">' + formatMoney(rate) + '</div>';
-  } else {
-    resultEl.className = "result empty";
-    resultEl.innerHTML =
-      '<div class="label-sm">' + route + '</div>' +
-      '<div class="amount">Pris ikke indlæst endnu</div>';
+  const pallets = parseInt(palletsEl.value, 10);
+  if (!pallets || pallets < 1) {
+    showEmpty("Angiv antal paller", route);
+    return;
   }
+  if (pallets > MAX_PALLETS) {
+    showEmpty("Maks. " + MAX_PALLETS + " paller pr. transport", route);
+    return;
+  }
+
+  const rates = RATES[from + "-" + to];
+  if (!rates) {
+    showEmpty("Pris ikke tilgængelig for denne rute", route);
+    return;
+  }
+
+  const perPallet = rates[bracketIndex(pallets)];
+  const total = perPallet * pallets;
+
+  resultEl.className = "result";
+  resultEl.innerHTML =
+    '<div class="label-sm">' + route + " · " + pallets +
+      (pallets === 1 ? " palle" : " paller") + '</div>' +
+    '<div class="amount">' + formatMoney(total) + '</div>' +
+    '<div class="label-sm">' + formatMoney(perPallet) + " pr. palle · 1 vej inkl. DMT</div>";
 }
 
 fromSel.addEventListener("change", calculate);
 toSel.addEventListener("change", calculate);
+palletsEl.addEventListener("input", calculate);
 document.getElementById("swap").addEventListener("click", function () {
   const tmp = fromSel.value;
   fromSel.value = toSel.value;

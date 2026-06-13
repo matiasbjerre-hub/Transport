@@ -15,16 +15,22 @@ Ingen build, ingen server, ingen afhængigheder. Bare:
 
 Alt det du skal røre ved ligger øverst i `<script>` i `index.html`:
 
-- **`WAREHOUSES`** — lagrene i dropdownen. Pt. Københavns Umschlag:
-  København, Berlin, Bocholt, Hannover, Hamborg. Tilføj flere Umschläge ved
-  at tilføje deres lagre her.
-- **`RATES`** — pristabellen. Tom indtil prislisterne er klar. Nøgleformat
-  `"FRA-TIL"` med lager-`id`'er, fx `"CPH-BER": 850`. Beregningen aktiveres
-  automatisk når en pris findes for den valgte rute.
-- **`CURRENCY`** — valuta (pt. `EUR`).
+- **`CITIES`** — byerne i dropdownen. Pt. København, Stockholm, Malmö,
+  Göteborg (fra Börje Jonsson-prislisten). Tilføj flere ved at tilføje deres
+  `id` + navn her.
+- **`RATES`** — pristabellen, **pris pr. palle i DKK, 1 vej inkl. DMT**.
+  Nøgleformat `"FRA-TIL"` med by-`id`'er. Værdien er et array med pris pr.
+  palle for hvert palle-interval i `BRACKETS`-rækkefølgen
+  (`1, 2, …, 8, "9-17", "18-29", "30-48"`). Samlet pris beregnes som
+  pris pr. palle × antal paller. Kun ruter der findes i listen kan beregnes.
+- **`BRACKETS` / `MAX_PALLETS`** — palle-intervallerne og det maksimale antal
+  paller pr. transport (48).
+- **`CURRENCY`** — valuta (pt. `DKK`).
 
-## Næste skridt (når prislisterne uploades)
+Kilde for priserne: `Borje_Jonsson_Prislista_DKK__SEK.xlsx`, ark **"Prisliste DKK"**.
 
-- Indlæs priserne i `RATES` (evt. begge retninger).
-- Overvej om prisen afhænger af mængde/volumen/vægt eller er en fast rute-pris —
-  så kan datamodellen udvides derefter.
+## Næste skridt
+
+- Tilføj manglende ruter i `RATES` efterhånden som de bliver prissat
+  (listen er pt. envejs for de ruter der findes i prislisten).
+- Overvej en omregner til SEK (ark 1 i kilden) hvis det bliver relevant.
