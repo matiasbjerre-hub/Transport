@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <style>
   :root {
     --brand: #1a1a1a;
@@ -174,6 +175,13 @@
   }
   .vehicles.show { display: block; }
   .vehicles .v-name { font-weight: 700; color: var(--brand); }
+  .upmuted { font-size: 0.8rem; color: var(--muted); margin: 0 0 1rem; }
+  .upstatus { font-size: 0.85rem; margin-top: 0.85rem; min-height: 1.2em; }
+  .upstatus.ok { color: #1a7f37; }
+  .upstatus.err { color: var(--accent); }
+  .upstatus.busy { color: var(--muted); }
+  .uptoken { margin-top: 0.85rem; font-size: 0.8rem; }
+  .uptoken a { color: var(--accent); }
   .note {
     font-size: 0.8rem;
     color: var(--muted);
@@ -254,6 +262,20 @@
         several vehicles. When m³ is entered, pallets are derived as m³ ÷ 2
         (rounded up). Routes via Malmö are intentionally excluded. ★ marks the
         Copenhagen Umschlag cities.
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Update price list</h2>
+      <p class="upmuted">Upload an updated DDSJ Excel sheet (<code>.xlsx</code>).
+      Prices update instantly, then <code>rates.json</code> is committed and
+      deployed automatically.</p>
+      <input type="file" id="file" accept=".xlsx,.xls" hidden>
+      <button class="toggle" id="uploadBtn">⬆ Upload price sheet</button>
+      <div id="upstatus" class="upstatus"></div>
+      <div class="uptoken">
+        <a href="#" id="setToken">Set / change GitHub token</a>
+        <span class="upmuted"> · stored only in this browser</span>
       </div>
     </div>
   </main>
@@ -369,6 +391,26 @@ const currencyEl = document.getElementById("currency");
 const twowaysBtn = document.getElementById("twoways");
 const resultEl = document.getElementById("result");
 const vehiclesEl = document.getElementById("vehicles");
+const fileEl = document.getElementById("file");
+const uploadBtn = document.getElementById("uploadBtn");
+const upstatusEl = document.getElementById("upstatus");
+const setTokenEl = document.getElementById("setToken");
+
+/* Live price table: starts from the built-in fallback, then overridden by
+   rates.json on load, and by an uploaded sheet. */
+let RATES = RATES_EUR;
+
+/* GitHub target for the auto-push on upload. */
+const GH = {
+  owner: "matiasbjerre-hub",
+  repo: "Transport",
+  branch: "claude/transport-repo-setup-ksz2ec",
+  path: "rates.json"
+};
+
+/* City name (as in the price sheet) -> id, for parsing uploads. */
+const NAME_TO_ID = {};
+CITIES.forEach(function (c) { NAME_TO_ID[c.name] = c.id; });
 
 let twoWays = false;
 
@@ -483,7 +525,7 @@ function calculate() {
     showEmpty("Max. " + MAX_PALLETS + " pallets", route); return;
   }
 
-  const outRates = RATES_EUR[from + "-" + to];
+  const outRates = RATES[from + "-" + to];
   if (!outRates) { showEmpty("Price not available for this route", route); return; }
 
   const out = legFor(outRates, pallets);
@@ -501,7 +543,7 @@ function calculate() {
   }
 
   /* 2-ways: outbound + return */
-  const retRates = RATES_EUR[to + "-" + from];
+  const retRates = RATES[to + "-" + from];
   if (!retRates) {
     showEmpty("Return price (" + nameOf(to) + " → " + nameOf(from) + ") not available", route);
     return;
@@ -543,6 +585,120 @@ document.getElementById("swap").addEventListener("click", function () {
   fromSel.value = toSel.value;
   toSel.value = tmp;
   calculate();
+});
+
+/* ---- Load latest prices from rates.json (overrides the fallback) ---- */
+fetch("rates.json?ts=" + Date.now())
+  .then(function (r) { return r.ok ? r.json() : null; })
+  .then(function (j) { if (j && j.rates) { RATES = j.rates; calculate(); } })
+  .catch(function () { /* keep fallback */ });
+
+/* ---- Token handling (stored only in this browser) ---- */
+function getToken(force) {
+  let t = localStorage.getItem("gh_token");
+  if (!t || force) {
+    t = window.prompt(
+      "Paste a GitHub fine-grained token with Contents: Read/Write on the " +
+      "Transport repo. It is stored only in this browser (localStorage)."
+    );
+    if (t) { t = t.trim(); localStorage.setItem("gh_token", t); }
+  }
+  return t;
+}
+
+function setStatus(msg, cls) {
+  upstatusEl.textContent = msg;
+  upstatusEl.className = "upstatus" + (cls ? " " + cls : "");
+}
+
+/* ---- Parse an uploaded DDSJ sheet into a rates object ---- */
+function parseWorkbook(buf) {
+  const wb = XLSX.read(buf, { type: "array" });
+  const ws = wb.Sheets[wb.SheetNames[0]];
+  const rows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true });
+  const rates = {};
+  rows.forEach(function (r) {
+    const o = r[0], d = r[1];
+    if (typeof o !== "string" || typeof d !== "string") return;
+    if (o.trim() === "Malmö" || d.trim() === "Malmö") return;   /* excluded */
+    const oid = NAME_TO_ID[o.trim()], did = NAME_TO_ID[d.trim()];
+    if (!oid || !did) return;
+    const vals = r.slice(3, 16);
+    if (vals.length < 13) return;
+    if (!vals.every(function (v) { return typeof v === "number"; })) return;
+    rates[oid + "-" + did] = vals.map(function (v) { return Math.round(v * 100) / 100; });
+  });
+  return rates;
+}
+
+/* ---- Commit rates.json via the GitHub API (triggers deploy) ---- */
+function commitRates(ratesObj) {
+  const token = getToken();
+  if (!token) { setStatus("Cancelled — no token provided.", "err"); return; }
+  const payload = {
+    updated: new Date().toISOString(),
+    source: "Uploaded via web app",
+    pcols: PCOLS,
+    rates: ratesObj
+  };
+  const content = btoa(unescape(encodeURIComponent(JSON.stringify(payload, null, 2))));
+  const api = "https://api.github.com/repos/" + GH.owner + "/" + GH.repo +
+              "/contents/" + GH.path;
+  const headers = {
+    "Authorization": "Bearer " + token,
+    "Accept": "application/vnd.github+json"
+  };
+  setStatus("Pushing to GitHub…", "busy");
+  fetch(api + "?ref=" + GH.branch, { headers: headers })
+    .then(function (r) { return r.ok ? r.json() : {}; })
+    .then(function (cur) {
+      return fetch(api, {
+        method: "PUT",
+        headers: headers,
+        body: JSON.stringify({
+          message: "Update prices via upload",
+          content: content,
+          branch: GH.branch,
+          sha: cur.sha
+        })
+      });
+    })
+    .then(function (r) {
+      if (!r.ok) { return r.text().then(function (t) { throw new Error(r.status + " " + t); }); }
+      setStatus("✓ Pushed — deploy started. Live in ~1 minute.", "ok");
+    })
+    .catch(function (e) {
+      setStatus("Push failed: " + e.message + " (check token / permissions)", "err");
+    });
+}
+
+/* ---- Wire the upload button ---- */
+uploadBtn.addEventListener("click", function () { fileEl.click(); });
+setTokenEl.addEventListener("click", function (e) {
+  e.preventDefault();
+  getToken(true);
+  setStatus("Token saved in this browser.", "ok");
+});
+fileEl.addEventListener("change", function () {
+  const f = fileEl.files[0];
+  if (!f) return;
+  setStatus("Reading " + f.name + "…", "busy");
+  const reader = new FileReader();
+  reader.onload = function () {
+    try {
+      const rates = parseWorkbook(reader.result);
+      const n = Object.keys(rates).length;
+      if (n === 0) { setStatus("No valid routes found in that sheet.", "err"); return; }
+      RATES = rates;
+      calculate();
+      setStatus("Parsed " + n + " routes. Updating prices…", "busy");
+      commitRates(rates);
+    } catch (err) {
+      setStatus("Could not read file: " + err.message, "err");
+    }
+    fileEl.value = "";
+  };
+  reader.readAsArrayBuffer(f);
 });
 
 calculate();
