@@ -111,6 +111,7 @@
   .opt { font-weight: 500; color: var(--muted); text-transform: none; letter-spacing: 0; }
   /* Copenhagen Umschlag cities highlighted in the dropdowns */
   option.umschlag { font-weight: 700; color: var(--accent); background: #fef5f6; }
+  option.other { color: #9a9a9a; }
   input[readonly] { background: #f5f5f4; color: var(--muted); cursor: not-allowed; }
   .toggle {
     width: 100%;
@@ -226,8 +227,8 @@
       <div class="field">
         <label for="currency">Currency</label>
         <select id="currency">
+          <option value="DKK" selected>DKK (kr.)</option>
           <option value="EUR">EUR (€)</option>
-          <option value="DKK">DKK (kr.)</option>
           <option value="SEK">SEK (kr)</option>
         </select>
       </div>
@@ -266,14 +267,16 @@
    CONFIGURATION
    ============================================================ */
 const CITIES = [
-  { id: "CPH", name: "Copenhagen" },
-  { id: "GOT", name: "Gothenburg" },
-  { id: "STO", name: "Stockholm" },
-  { id: "OSL", name: "Oslo" },
+  /* Copenhagen Umschlag cities — kept at the top */
   { id: "HAM", name: "Hamburg", umschlag: true },
   { id: "BER", name: "Berlin", umschlag: true },
   { id: "BOC", name: "Bocholt", umschlag: true },
   { id: "HAN", name: "Hannover", umschlag: true },
+  /* All other cities */
+  { id: "CPH", name: "Copenhagen" },
+  { id: "GOT", name: "Gothenburg" },
+  { id: "STO", name: "Stockholm" },
+  { id: "OSL", name: "Oslo" },
   { id: "BRE", name: "Bremen" },
   { id: "DOR", name: "Dortmund" },
   { id: "FFM", name: "Frankfurt" }
@@ -374,7 +377,7 @@ function fillSelect(sel) {
     const opt = document.createElement("option");
     opt.value = c.id;
     opt.textContent = (c.umschlag ? "★ " : "") + c.name;
-    if (c.umschlag) opt.className = "umschlag";
+    opt.className = c.umschlag ? "umschlag" : "other";
     sel.appendChild(opt);
   });
 }
