@@ -37,7 +37,7 @@ Everything lives at the top of `<script>` in `index.html`:
 - **Source:** DDSJ 2026 international list only. **All routes via Malmö are
   excluded.**
 - **Vehicle** is chosen from the pallet count: Van (≤4), Curtain van (≤8),
-  Trailer (9–18), Full trailer (33). Loads above 33 pallets are split across
+  Truck 18p (9–18), Full trailer (33). Loads above 33 pallets are split across
   several vehicles (full trailers + the smallest vehicle for the remainder) and
   the prices are summed.
 - **2-ways** button: adds the return leg (destination → origin) and shows a

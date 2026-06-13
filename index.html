@@ -250,7 +250,7 @@
         international price list, shown in EUR and converted to DKK/SEK using the
         fixed rates in <code>FX</code> (top of the script). Vehicle is chosen
         automatically from the number of pallets (Van ≤4, Curtain van ≤8,
-        Trailer 9–18, Full trailer 33). Loads above 33 pallets are split across
+        Truck 18p for 9–18, Full trailer 33). Loads above 33 pallets are split across
         several vehicles. When m³ is entered, pallets are derived as m³ ÷ 2
         (rounded up). Routes via Malmö are intentionally excluded. ★ marks the
         Copenhagen Umschlag cities.
@@ -402,7 +402,7 @@ function vehicleName(idx) {
   if (idx === 0) return "Van";
   if (idx === 1) return "Curtain van";
   if (idx === 12) return "Full trailer (33 pallets)";
-  return "Trailer (" + PCOLS[idx] + " pallets)";
+  return "Truck 18p";
 }
 
 /* Price + vehicle breakdown for one leg (EUR). */
