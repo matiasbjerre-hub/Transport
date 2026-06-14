@@ -175,13 +175,10 @@
   }
   .vehicles.show { display: block; }
   .vehicles .v-name { font-weight: 700; color: var(--brand); }
-  .upmuted { font-size: 0.8rem; color: var(--muted); margin: 0 0 1rem; }
-  .upstatus { font-size: 0.85rem; margin-top: 0.85rem; min-height: 1.2em; }
+  .upstatus { font-size: 0.85rem; margin-top: 0.6rem; min-height: 1.2em; text-align: center; }
   .upstatus.ok { color: #1a7f37; }
   .upstatus.err { color: var(--accent); }
   .upstatus.busy { color: var(--muted); }
-  .uptoken { margin-top: 0.85rem; font-size: 0.8rem; }
-  .uptoken a { color: var(--accent); }
   .note {
     font-size: 0.8rem;
     color: var(--muted);
@@ -253,6 +250,10 @@
 
       <div class="vehicles" id="vehicles"></div>
 
+      <input type="file" id="file" accept=".xlsx,.xls" hidden>
+      <button class="toggle" id="uploadBtn" style="margin-top:0.75rem;">⬆ Update prices (upload sheet)</button>
+      <div id="upstatus" class="upstatus"></div>
+
       <div class="note">
         <strong>Note:</strong> Prices are per transport from the DDSJ 2026
         international price list, shown in EUR and converted to DKK/SEK using the
@@ -262,20 +263,6 @@
         several vehicles. When m³ is entered, pallets are derived as m³ ÷ 2
         (rounded up). Routes via Malmö are intentionally excluded. ★ marks the
         Copenhagen Umschlag cities.
-      </div>
-    </div>
-
-    <div class="card">
-      <h2>Update price list</h2>
-      <p class="upmuted">Upload an updated DDSJ Excel sheet (<code>.xlsx</code>).
-      Prices update instantly, then <code>rates.json</code> is committed and
-      deployed automatically.</p>
-      <input type="file" id="file" accept=".xlsx,.xls" hidden>
-      <button class="toggle" id="uploadBtn">⬆ Upload price sheet</button>
-      <div id="upstatus" class="upstatus"></div>
-      <div class="uptoken">
-        <a href="#" id="setToken">Set / change GitHub token</a>
-        <span class="upmuted"> · stored only in this browser</span>
       </div>
     </div>
   </main>
@@ -394,7 +381,6 @@ const vehiclesEl = document.getElementById("vehicles");
 const fileEl = document.getElementById("file");
 const uploadBtn = document.getElementById("uploadBtn");
 const upstatusEl = document.getElementById("upstatus");
-const setTokenEl = document.getElementById("setToken");
 
 /* Live price table: starts from the built-in fallback, then overridden by
    rates.json on load, and by an uploaded sheet. */
@@ -668,17 +654,18 @@ function commitRates(ratesObj) {
       setStatus("✓ Pushed — deploy started. Live in ~1 minute.", "ok");
     })
     .catch(function (e) {
-      setStatus("Push failed: " + e.message + " (check token / permissions)", "err");
+      /* On auth failure, clear the token so the next upload re-prompts. */
+      if (/\b40[13]\b/.test(e.message)) {
+        localStorage.removeItem("gh_token");
+        setStatus("Push failed (auth). Token cleared — try again to re-enter it.", "err");
+      } else {
+        setStatus("Push failed: " + e.message, "err");
+      }
     });
 }
 
 /* ---- Wire the upload button ---- */
 uploadBtn.addEventListener("click", function () { fileEl.click(); });
-setTokenEl.addEventListener("click", function (e) {
-  e.preventDefault();
-  getToken(true);
-  setStatus("Token saved in this browser.", "ok");
-});
 fileEl.addEventListener("change", function () {
   const f = fileEl.files[0];
   if (!f) return;
