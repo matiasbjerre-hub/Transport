@@ -45,7 +45,7 @@ On error: `{ "ok": false, "error": "Price not available for this route" }`.
 - Prices come from `rates.json` and are cached for 1 hour (`CacheService`).
   Uploading a new sheet in the calculator updates `rates.json`, so the catalogue
   picks up new prices automatically (within the cache window).
-- `FX` (currency rates) is duplicated here — keep it in sync with the
-  calculator's `FX` values in `index.html`.
+- `FX` (currency rates) is read from `rates.json` (single source of truth,
+  shared with the calculator); the constant here is only a fallback.
 - Optional: deploy this script as a web app (`doGet`) to also expose a JSON API:
   `.../exec?from=HAM&to=CPH&pallets=8&currency=DKK&twoWays=1`.

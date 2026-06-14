@@ -26,8 +26,8 @@ var PCOLS = [4, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 33];
 var FULL_TRAILER = 33;
 var M3_PER_PALLET = 2;
 
-// Exchange rates from EUR — keep in sync with the calculator's FX values.
-var FX = { EUR: 1, DKK: 7.46, SEK: 11.34 };
+// Exchange rates from EUR — loaded from rates.json; this is only a fallback.
+var FX_FALLBACK = { EUR: 1, DKK: 7.46, SEK: 11.34 };
 
 // City name -> id (so callers may pass either "Hamburg" or "HAM").
 var NAME_TO_ID = {
@@ -111,7 +111,6 @@ function vehiclesText_(veh) {
 function calculateTransport(from, to, pallets, opts) {
   opts = opts || {};
   var currency = (opts.currency || 'DKK').toUpperCase();
-  var fx = FX[currency] || 1;
 
   var oid = resolveCity_(from), did = resolveCity_(to);
   if (!oid || !did) return { ok: false, error: 'Unknown city' };
@@ -124,6 +123,8 @@ function calculateTransport(from, to, pallets, opts) {
   if (!pallets || pallets < 1) return { ok: false, error: 'Invalid pallet count' };
 
   var data = getRates_();
+  var fxTable = data.fx || FX_FALLBACK;
+  var fx = fxTable[currency] || 1;
   var outArr = data.rates[oid + '-' + did];
   if (!outArr) return { ok: false, error: 'Price not available for this route' };
 

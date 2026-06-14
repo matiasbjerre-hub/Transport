@@ -1,6 +1,11 @@
 {
   "updated": "2026-06-14T00:02:14.128Z",
   "source": "Uploaded via web app",
+  "fx": {
+    "EUR": 1,
+    "DKK": 7.46,
+    "SEK": 11.34
+  },
   "pcols": [
     4,
     8,

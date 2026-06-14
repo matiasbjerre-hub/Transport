@@ -21,8 +21,9 @@ Everything lives at the top of `<script>` in `index.html`:
 - **`CITIES`** — the dropdown cities. `{ id, name, umschlag }`. Set
   `umschlag: true` to mark a Copenhagen Umschlag city (shown with ★ + colour).
   Currently: Hamburg, Berlin, Bocholt, Hannover.
-- **`FX`** — exchange rates, `1 EUR = X`. Currently `DKK: 7.46`, `SEK: 11.34`.
-  Update manually. The currency selector (EUR/DKK/SEK) converts via `FX`.
+- **`FX`** — exchange rates, `1 EUR = X`. The single source is `rates.json`
+  (`fx` key), shared with the catalogue integration; the value in `index.html`
+  is only a fallback. The currency selector (EUR/DKK/SEK) converts via `FX`.
 - **`RATES_EUR`** — the price table, **total price per transport in EUR**.
   Key `"FROM-TO"` with city ids; value is an array of prices for the columns
   `PCOLS = [4, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 33]` (last = full

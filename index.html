@@ -293,8 +293,8 @@ const CITIES = [
   { id: "FFM", name: "Frankfurt" }
 ];
 
-/* Exchange rates from EUR — adjust to current rates as needed. */
-const FX = { EUR: 1, DKK: 7.46, SEK: 11.34 };
+/* Exchange rates from EUR — loaded from rates.json (this is the fallback). */
+let FX = { EUR: 1, DKK: 7.46, SEK: 11.34 };
 
 /* Pallet columns in the price list. Last entry = full trailer (33 pallets). */
 const PCOLS = [4, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 33];
@@ -578,7 +578,7 @@ document.getElementById("swap").addEventListener("click", function () {
 /* ---- Load latest prices from rates.json (overrides the fallback) ---- */
 fetch("rates.json?ts=" + Date.now())
   .then(function (r) { return r.ok ? r.json() : null; })
-  .then(function (j) { if (j && j.rates) { RATES = j.rates; calculate(); } })
+  .then(function (j) { if (j && j.rates) { RATES = j.rates; if (j.fx) FX = j.fx; calculate(); } })
   .catch(function () { /* keep fallback */ });
 
 /* ---- Token handling (stored only in this browser) ---- */
@@ -626,6 +626,7 @@ function commitRates(ratesObj) {
   const payload = {
     updated: new Date().toISOString(),
     source: "Uploaded via web app",
+    fx: FX,
     pcols: PCOLS,
     rates: ratesObj
   };
