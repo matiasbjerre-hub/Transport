@@ -1,11 +1,12 @@
 /**
  * Rent.Group Transport cost — Google Apps Script integration module.
  *
- * Lets the Online catalogue (Apps Script) fetch a transport price from the
- * same data the web calculator uses. It reads the published price table
- * (rates.json on GitHub Pages) and runs the identical calculation logic.
+ * Lets RFQ Analyser (Apps Script) — or any Apps Script project — fetch a
+ * transport price from the same data the web calculator uses. It reads the
+ * published price table (rates.json on GitHub Pages) and runs the identical
+ * calculation logic.
  *
- * Paste this file into the catalogue's Apps Script project, then call:
+ * Paste this file into the RFQ Apps Script project, then call:
  *
  *   var r = calculateTransport('Hamburg', 'Copenhagen', 8, { currency: 'DKK' });
  *   // r.total            -> number in the chosen currency (rounded)

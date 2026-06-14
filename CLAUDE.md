@@ -20,15 +20,15 @@ upload that auto-commits and re-deploys.
 | Project | Where | Tech | My access |
 |---|---|---|---|
 | **Transport calculator** (this) | `matiasbjerre-hub/Transport` | Static HTML/JS on GitHub Pages | GitHub repo |
-| **RFQ Analyser** | `matiasbjerre-hub/RFQ` | Google Apps Script (VS Code + clasp) | GitHub repo (if mirrored) |
-| **Online catalogue** | `<online-catalogue-repo>` | Google Apps Script (VS Code + clasp) | GitHub repo (if mirrored) |
+| **RFQ Analyser** ← integration target | `matiasbjerre-hub/RFQ` | Google Apps Script (VS Code + clasp) | GitHub repo |
+| **Online catalogue** | `matiasbjerre-hub/catalogue` | Google Apps Script (VS Code + clasp) | GitHub repo |
 
 The projects link at **runtime**, not via repos: the Apps Script projects fetch
 this calculator's published `rates.json` over HTTPS. Repo separation is
-irrelevant to that.
+irrelevant to that. **The transport price is integrated into RFQ Analyser.**
 
-> Apps Script note: editing the catalogue/RFQ code requires their source to live
-> in a GitHub repo (mirrored via `clasp`). `clasp push`/`pull` needs Google OAuth
+> Apps Script note: both RFQ and catalogue live in GitHub repos and are managed
+> with `clasp` from VS Code. `clasp push`/`pull` needs Google OAuth
 > (`clasp login`) — fine in a local VS Code session, not in a headless cloud one.
 
 ## Files
@@ -41,9 +41,9 @@ irrelevant to that.
   - `rates`: `{ "HAM-CPH": [13 prices in EUR], ... }` keyed `FROM-TO` by city id.
 - `logo.png` — Rent.Group brandmark (white/gold), shown top-left on black header.
 - `.github/workflows/deploy-pages.yml` — builds & deploys the site on push.
-- `integration/transport_calc.gs` — Google Apps Script module for the catalogue:
-  fetches `rates.json` and runs the **identical** calc. Public function
-  `calculateTransport(from, to, pallets, opts)`.
+- `integration/transport_calc.gs` — Google Apps Script module for **RFQ
+  Analyser** (works in any Apps Script project): fetches `rates.json` and runs
+  the **identical** calc. Public function `calculateTransport(from, to, pallets, opts)`.
 - `integration/README.md` — how to use the `.gs` module.
 - `README.md` — user-facing overview.
 
@@ -93,25 +93,26 @@ at the URL above (hard-refresh to bypass cache).
 
 ## How to brief a NEW session
 
-Copy–paste something like this (fill in the catalogue repo name):
+Copy–paste this:
 
 > "Connect this session to my three repos: `matiasbjerre-hub/Transport`,
-> `matiasbjerre-hub/RFQ`, and `<online-catalogue-repo>`. Read
-> `CLAUDE.md` in the Transport repo first.
+> `matiasbjerre-hub/RFQ`, and `matiasbjerre-hub/catalogue`. Read `CLAUDE.md` in
+> the Transport repo first.
 >
-> The RFQ Analyser and Online catalogue are Google Apps Script projects I edit
-> in VS Code with clasp (I'm logged in via `clasp login`, so `clasp push`/`pull`
-> work). The Transport calculator is a static GitHub Pages site; work on branch
+> RFQ Analyser and the catalogue are Google Apps Script projects I edit in VS
+> Code with clasp (I'm logged in via `clasp login`, so `clasp push`/`pull` work).
+> The Transport calculator is a static GitHub Pages site; work on branch
 > `claude/transport-repo-setup-ksz2ec` and verify the Pages deploy after each push.
 >
-> Task: integrate the transport price into the Online catalogue. Use
-> `integration/transport_calc.gs` from the Transport repo — add it to the
-> catalogue's Apps Script project and call `calculateTransport(from, to, pallets,
-> { currency:'DKK', twoWays:false })`, then show the returned `total` and
-> `vehiclesText` in <the place in the catalogue UI you want it>."
+> Task: integrate the transport price into **RFQ Analyser**. Take
+> `integration/transport_calc.gs` from the Transport repo, add it to the RFQ
+> Apps Script project, commit it to `matiasbjerre-hub/RFQ` and `clasp push`. Then
+> call `calculateTransport(from, to, pallets, { currency:'DKK', twoWays:false })`
+> and show the returned `total` and `vehiclesText` in <the place in RFQ you want
+> it>."
 
 What a multi-repo session can then do that this one can't:
-- Add/commit the `.gs` straight into the catalogue repo and `clasp push` it.
+- Add/commit the `.gs` straight into the RFQ repo and `clasp push` it.
 - Keep calc logic, `fx`, `pcols` and city ids in sync across all repos in one go.
 
 What it still can't do: touch Apps Script code that exists **only** inside Google

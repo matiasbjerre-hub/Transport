@@ -1,17 +1,18 @@
-# Integration — Online catalogue (Google Apps Script)
+# Integration — RFQ Analyser (Google Apps Script)
 
-`transport_calc.gs` lets the Online catalogue (Apps Script) fetch a transport
-price from the **same data** the web calculator uses. It reads the published
-price table `rates.json` from GitHub Pages and runs the identical calculation.
+`transport_calc.gs` lets RFQ Analyser (Apps Script) fetch a transport price from
+the **same data** the web calculator uses. It reads the published price table
+`rates.json` from GitHub Pages and runs the identical calculation. (The module is
+generic — it works in any Apps Script project, e.g. the catalogue too.)
 
-The two projects live in separate GitHub repos — that does not matter. The link
-is the deployed URL `https://matiasbjerre-hub.github.io/Transport/rates.json`,
+The projects live in separate GitHub repos — that does not matter. The link is
+the deployed URL `https://matiasbjerre-hub.github.io/Transport/rates.json`,
 not the repo.
 
 ## Setup
 
-1. In the catalogue's Apps Script project: **+ → Script**, paste the contents of
-   `transport_calc.gs`.
+1. In the RFQ Apps Script project: add the contents of `transport_calc.gs` as a
+   new script file (and `clasp push`).
 2. Call it from your catalogue code:
 
    ```js
