@@ -91,6 +91,33 @@ at the URL above (hard-refresh to bypass cache).
 
 ---
 
+## Giving a session access to all three repos
+
+Two separate layers control repo access — don't confuse them:
+
+1. **GitHub App permission (what Claude *may* touch).** Set on github.com under
+   **Settings → Applications → Installed GitHub Apps → Claude → Configure →
+   Repository access**. This is already on **All repositories**, so the app is
+   allowed to reach every repo, including future ones. Nothing to change here.
+2. **Session / environment scope (what *this* session actually sees).** Each
+   Claude Code on the web session is bound to one **Environment**, and the
+   environment decides which repos are in scope. A session scoped only to
+   `Transport` cannot read/write `RFQ` or `catalogue` even though the app has
+   "All repositories" — by design.
+
+So if a session only sees `Transport`, the fix is **not** on github.com — it's
+the environment. To work across all three:
+
+- In Claude Code on the web → **Environments**, create or edit an environment
+  whose source/scope covers all three repos (`Transport`, `RFQ`, `catalogue`).
+- Start the new session in that environment, then paste the brief below.
+- Docs: https://code.claude.com/docs/en/claude-code-on-the-web
+
+Reminder: even with all three in scope, `clasp push`/`pull` for `RFQ` and
+`catalogue` needs interactive `clasp login` (Google OAuth) and must run locally
+in VS Code — a headless cloud session can commit the `.gs` to GitHub but cannot
+sync it to Google Apps Script.
+
 ## How to brief a NEW session
 
 Copy–paste this:
