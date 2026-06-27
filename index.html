@@ -166,6 +166,20 @@
   }
   .legs .leg:last-child { border-bottom: none; }
   .legs .leg .v { color: var(--muted); }
+  /* Transport list rows (origin/price on one line, vehicles below) */
+  #cartList .leg { align-items: flex-start; gap: 1rem; }
+  #cartList .leg .desc { flex: 1; }
+  #cartList .leg .sub { display: block; font-size: 0.8rem; color: var(--muted); margin-top: 0.15rem; }
+  #cartList .leg .right { display: flex; align-items: center; gap: 0.6rem; white-space: nowrap; }
+  #cartList .leg .price { font-weight: 600; color: var(--brand); }
+  .rm {
+    width: 26px; height: 26px; flex: 0 0 auto;
+    border: 1px solid var(--line); border-radius: 7px;
+    background: #fff; color: var(--muted); cursor: pointer;
+    font-size: 0.9rem; line-height: 1; padding: 0;
+    transition: all 0.15s;
+  }
+  .rm:hover { border-color: var(--accent); color: var(--accent); }
   .vehicles {
     display: none;
     margin-top: 0.75rem;
@@ -252,6 +266,8 @@
 
       <div class="vehicles" id="vehicles"></div>
 
+      <button class="toggle" id="addBtn" style="margin-top:0.75rem;">&#43; Add this transport to the list</button>
+
       <input type="file" id="file" accept=".xlsx,.xls" hidden>
       <button class="toggle" id="uploadBtn" style="margin-top:0.75rem;">⬆ Update prices (upload sheet)</button>
       <div id="upstatus" class="upstatus"></div>
@@ -266,6 +282,16 @@
         (rounded up). Routes via Malmö are intentionally excluded. ★ marks the
         Copenhagen Umschlag cities.
       </div>
+    </div>
+
+    <div class="card" id="cartCard" style="display:none;">
+      <h2>Transport list &mdash; combined total</h2>
+      <div class="legs" id="cartList"></div>
+      <div class="result" id="cartResult">
+        <div class="amount" id="cartTotal"></div>
+        <div class="label-sm" id="cartCount"></div>
+      </div>
+      <button class="toggle" id="clearCart" style="margin-top:0.75rem;">Clear list</button>
     </div>
   </main>
 
@@ -498,68 +524,149 @@ function showEmpty(msg, route) {
   vehiclesEl.innerHTML = "";
 }
 
-function calculate() {
+/* Compute the price + vehicle breakdown for the current inputs.
+   Returns { ok:true, ... } on success, or { ok:false, msg, route } otherwise.
+   Used by both the live result and the transport list. */
+function computeTransport() {
   syncPalletsFromVolume();
 
   const from = fromSel.value;
   const to = toSel.value;
   const route = nameOf(from) + " &rarr; " + nameOf(to);
 
-  if (from === to) { showEmpty("Select two different cities"); return; }
+  if (from === to) { return { ok: false, msg: "Select two different cities" }; }
 
   const pallets = parseInt(palletsEl.value, 10);
-  if (!pallets || pallets < 1) { showEmpty("Enter the number of pallets", route); return; }
-  if (pallets > MAX_PALLETS) {
-    showEmpty("Max. " + MAX_PALLETS + " pallets", route); return;
-  }
+  if (!pallets || pallets < 1) { return { ok: false, msg: "Enter the number of pallets", route: route }; }
+  if (pallets > MAX_PALLETS) { return { ok: false, msg: "Max. " + MAX_PALLETS + " pallets", route: route }; }
 
   const outRates = RATES[from + "-" + to];
-  if (!outRates) { showEmpty("Price not available for this route", route); return; }
+  if (!outRates) { return { ok: false, msg: "Price not available for this route", route: route }; }
 
   const out = legFor(outRates, pallets);
-  const palLabel = pallets + (pallets === 1 ? " pallet" : " pallets");
 
   if (!twoWays) {
+    return {
+      ok: true, from: from, to: to, pallets: pallets, twoWays: false,
+      priceEur: out.price, vehicles: out.vehicles
+    };
+  }
+
+  const retRates = RATES[to + "-" + from];
+  if (!retRates) {
+    return { ok: false, msg: "Return price (" + nameOf(to) + " → " + nameOf(from) + ") not available", route: route };
+  }
+  const ret = legFor(retRates, pallets);
+  return {
+    ok: true, from: from, to: to, pallets: pallets, twoWays: true,
+    priceEur: out.price + ret.price, vehicles: mergeVehicles(out.vehicles, ret.vehicles),
+    outPrice: out.price, retPrice: ret.price
+  };
+}
+
+function calculate() {
+  const r = computeTransport();
+  if (!r.ok) { showEmpty(r.msg, r.route); return; }
+
+  const palLabel = r.pallets + (r.pallets === 1 ? " pallet" : " pallets");
+  const route = nameOf(r.from) + " &rarr; " + nameOf(r.to);
+
+  if (!r.twoWays) {
     resultEl.className = "result";
     resultEl.innerHTML =
       '<div class="label-sm">' + route + " · " + palLabel + '</div>' +
-      '<div class="amount">' + formatMoney(out.price) + '</div>' +
+      '<div class="amount">' + formatMoney(r.priceEur) + '</div>' +
       '<div class="label-sm">one way</div>';
     vehiclesEl.className = "vehicles show";
-    vehiclesEl.innerHTML = 'Vehicle: <span class="v-name">' + vehiclesText(out.vehicles) + "</span>";
+    vehiclesEl.innerHTML = 'Vehicle: <span class="v-name">' + vehiclesText(r.vehicles) + "</span>";
     return;
   }
-
-  /* 2-ways: outbound + return */
-  const retRates = RATES[to + "-" + from];
-  if (!retRates) {
-    showEmpty("Return price (" + nameOf(to) + " → " + nameOf(from) + ") not available", route);
-    return;
-  }
-  const ret = legFor(retRates, pallets);
-  const total = out.price + ret.price;
-  const allVeh = mergeVehicles(out.vehicles, ret.vehicles);
 
   resultEl.className = "result";
   resultEl.innerHTML =
     '<div class="label-sm">Round trip · ' + palLabel + '</div>' +
     '<div class="legs">' +
-      '<div class="leg"><span>' + nameOf(from) + " &rarr; " + nameOf(to) +
-        '</span><span class="v">' + formatMoney(out.price) + '</span></div>' +
-      '<div class="leg"><span>' + nameOf(to) + " &rarr; " + nameOf(from) +
-        '</span><span class="v">' + formatMoney(ret.price) + '</span></div>' +
+      '<div class="leg"><span>' + nameOf(r.from) + " &rarr; " + nameOf(r.to) +
+        '</span><span class="v">' + formatMoney(r.outPrice) + '</span></div>' +
+      '<div class="leg"><span>' + nameOf(r.to) + " &rarr; " + nameOf(r.from) +
+        '</span><span class="v">' + formatMoney(r.retPrice) + '</span></div>' +
     '</div>' +
-    '<div class="amount">' + formatMoney(total) + '</div>' +
+    '<div class="amount">' + formatMoney(r.priceEur) + '</div>' +
     '<div class="label-sm">total · both ways</div>';
   vehiclesEl.className = "vehicles show";
-  vehiclesEl.innerHTML = 'Vehicles (round trip): <span class="v-name">' + vehiclesText(allVeh) + "</span>";
+  vehiclesEl.innerHTML = 'Vehicles (round trip): <span class="v-name">' + vehiclesText(r.vehicles) + "</span>";
 }
+
+/* ============================================================
+   TRANSPORT LIST — add several transports, see a combined total
+   ============================================================ */
+const cartCard = document.getElementById("cartCard");
+const cartList = document.getElementById("cartList");
+const cartTotal = document.getElementById("cartTotal");
+const cartCount = document.getElementById("cartCount");
+const addBtn = document.getElementById("addBtn");
+const clearCartBtn = document.getElementById("clearCart");
+
+/* Each entry stores the EUR price so the total re-converts on a currency change. */
+let cart = [];
+
+function renderCart() {
+  if (cart.length === 0) {
+    cartCard.style.display = "none";
+    cartList.innerHTML = "";
+    return;
+  }
+  cartCard.style.display = "block";
+
+  let total = 0;
+  let html = "";
+  cart.forEach(function (it, i) {
+    total += it.priceEur;
+    const palLabel = it.pallets + (it.pallets === 1 ? " pallet" : " pallets");
+    const desc = nameOf(it.from) + " &rarr; " + nameOf(it.to) +
+      (it.twoWays ? " · round trip" : "") + " · " + palLabel;
+    html +=
+      '<div class="leg">' +
+        '<span class="desc">' + (i + 1) + ". " + desc +
+          '<span class="sub">' + vehiclesText(it.vehicles) + '</span></span>' +
+        '<span class="right">' +
+          '<span class="price">' + formatMoney(it.priceEur) + '</span>' +
+          '<button class="rm" data-i="' + i + '" title="Remove">&times;</button>' +
+        '</span>' +
+      '</div>';
+  });
+  cartList.innerHTML = html;
+
+  cartTotal.textContent = formatMoney(total);
+  cartCount.textContent = "total · " + cart.length +
+    (cart.length === 1 ? " transport" : " transports");
+}
+
+addBtn.addEventListener("click", function () {
+  const r = computeTransport();
+  if (!r.ok) { calculate(); return; }   /* surface the reason in the live result */
+  cart.push(r);
+  renderCart();
+});
+
+cartList.addEventListener("click", function (e) {
+  const btn = e.target.closest(".rm");
+  if (!btn) return;
+  const i = parseInt(btn.getAttribute("data-i"), 10);
+  cart.splice(i, 1);
+  renderCart();
+});
+
+clearCartBtn.addEventListener("click", function () {
+  cart = [];
+  renderCart();
+});
 
 fromSel.addEventListener("change", calculate);
 toSel.addEventListener("change", calculate);
 volumeEl.addEventListener("input", calculate);
 palletsEl.addEventListener("input", calculate);
-currencyEl.addEventListener("change", calculate);
+currencyEl.addEventListener("change", function () { calculate(); renderCart(); });
 
 twowaysBtn.addEventListener("click", function () {
   twoWays = !twoWays;
