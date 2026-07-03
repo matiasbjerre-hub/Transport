@@ -161,15 +161,6 @@
   table.results tr.flag-missing td.flag { color: var(--accent); font-weight: 600; }
   .flag-note { font-size: 0.75rem; color: var(--muted); }
   .empty-msg { color: var(--muted); font-size: 0.9rem; padding: 0.5rem 0; }
-  .note {
-    font-size: 0.8rem;
-    color: var(--muted);
-    margin-top: 1rem;
-    padding: 0.9rem;
-    background: #fafaf9;
-    border-radius: 10px;
-    border-left: 3px solid var(--accent);
-  }
   details.admin summary {
     cursor: pointer;
     list-style: none;
@@ -225,14 +216,19 @@
 
   <main>
     <div class="card">
-      <h2>Missing items from a stock export</h2>
+      <h2>Subrental Assistant</h2>
       <p style="font-size:0.9rem;color:var(--muted);margin-top:0">
         Upload the stock/availability export (.xls/.xlsx) for an order. Every item
         with <strong>Missing stock &gt; 0</strong> is listed, then downloadable as
         a ready-to-submit .xlsx for the internal subrental request.
       </p>
 
-      <div class="field-row">
+      <input type="file" id="stockFile" accept=".xlsx,.xls" hidden>
+      <button class="toggle" id="stockUploadBtn">⬆ Upload stock export</button>
+      <span id="stockFileName" style="font-size:0.85rem;color:var(--muted);margin-left:0.5rem"></span>
+      <div id="stockStatus" class="upstatus"></div>
+
+      <div class="field-row" id="orderFieldsRow" style="display:none">
         <div class="field">
           <label for="orderNo">Order no.</label>
           <input type="text" id="orderNo" placeholder="e.g. 2610293">
@@ -247,41 +243,14 @@
         </div>
       </div>
 
-      <input type="file" id="stockFile" accept=".xlsx,.xls" hidden>
-      <button class="toggle" id="stockUploadBtn">⬆ Upload stock export</button>
-      <span id="stockFileName" style="font-size:0.85rem;color:var(--muted);margin-left:0.5rem"></span>
-      <div id="stockStatus" class="upstatus"></div>
-
       <div id="resultsArea"></div>
-
-      <div class="note">
-        <strong>Order no.</strong> is auto-filled from the uploaded file's name
-        when it contains one (editable if wrong/missing). Item numbers starting
-        with <strong>19</strong> are local Scandinavian articles — these can
-        only be subrented from our own warehouse, so they're excluded entirely
-        rather than listed. Any other item not found in the master data is
-        flagged in red (description shown as given in the stock export
-        instead). <strong>Rental days</strong> defaults from the subrental
-        period above using the internal subrental scale (not plain calendar
-        days) — e.g. a 2-week period defaults to 3 rental days, 3 weeks to 7.
-        <strong>Rental days</strong> and <strong>Warehouse</strong> are per-row
-        info for the colleague booking the subrental — not connected to
-        pricing — and both are editable per row.
-      </div>
     </div>
 
     <details class="admin">
       <summary><span class="plus-icon">+</span> Refresh the item master data</summary>
       <div class="card">
         <p style="font-size:0.85rem;color:var(--muted);margin-top:0">
-          Upload a new "Master Datenbestand" file (.xlsx, columns: Item number,
-          Article category, Article group, Description (DE), Description,
-          Description 2, Rental price €, Cleaning cost €, Setup cost €,
-          Replacement value €, Weight (g), Volume (m3), Ironing cost €,
-          Unit/package — only "Item number" and "Description" are actually used
-          here; Setup cost is for the RFQ tool, not this one). This rebuilds
-          <code>datenbestand.json</code> and pushes it to GitHub — the live page
-          updates automatically in about a minute.
+          Upload an updated product list (Master Datenbestand) here:
         </p>
         <input type="file" id="masterFile" accept=".xlsx,.xls" hidden>
         <button class="toggle" id="masterUploadBtn">⬆ Update master data</button>
@@ -565,12 +534,33 @@ function extractOrderNoFromFilename(name) {
   return matches.reduce(function (longest, d) { return d.length > longest.length ? d : longest; }, "");
 }
 
+/* ---- Recompute every visible row's Rental days default when the subrental
+   period is filled in (it's only entered after upload, so rows are already
+   rendered by the time this fires). Overwrites whatever's currently in each
+   box - reasonable since the period is normally set once, right after
+   upload, before any row gets a bespoke override. ---- */
+function refreshRentalDaysDefaults() {
+  if (!currentRows) return;
+  const days = rentalDaysForPeriod(
+    document.getElementById("periodFrom").value,
+    document.getElementById("periodTo").value
+  );
+  if (days === "") return;
+  currentRows.forEach(function (r, i) {
+    const el = document.getElementById("rentalDays_" + i);
+    if (el) el.value = days;
+  });
+}
+document.getElementById("periodFrom").addEventListener("input", refreshRentalDaysDefaults);
+document.getElementById("periodTo").addEventListener("input", refreshRentalDaysDefaults);
+
 /* ---- Wire the stock-export upload ---- */
 stockUploadBtn.addEventListener("click", function () { stockFileEl.click(); });
 stockFileEl.addEventListener("change", function () {
   const f = stockFileEl.files[0];
   if (!f) return;
   stockFileNameEl.textContent = f.name;
+  document.getElementById("orderFieldsRow").style.display = "flex";
   const orderNo = extractOrderNoFromFilename(f.name);
   if (orderNo) document.getElementById("orderNo").value = orderNo;
   setStatus(stockStatusEl, "Reading " + f.name + "…", "busy");

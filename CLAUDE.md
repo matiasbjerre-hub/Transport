@@ -32,35 +32,52 @@ pattern as the Transport calculator above.
     entries not already covered by the German data — the other 149 overlap and
     were intentionally left alone to avoid downgrading rows that already have
     richer German-sourced data).
-- **What it does:** fill in **Order no.** (auto-filled from the uploaded
-  filename's longest digit run if it contains one, e.g. "Missing items order
-  2610293.xls" → "2610293" — still editable/overridable) and the **subrental
-  period** (from/to dates), then upload a stock/availability export
-  (`.xls`/`.xlsx`, same format as the Excel "Subrental" workflow) → every row
-  with `Missing stock > 0` is extracted (columns identified by header name:
-  "Item number", "Description", "Missing stock") → **item numbers starting
-  with `19` are excluded entirely** (local-warehouse-only articles — can never
-  be subrented from elsewhere; this is different from the Master Datenbestand
-  merge above, which is about looking up *description* data for 19-prefix
-  items, not about whether they're eligible for subrental at all) → shown as
-  an on-screen preview table with, **per row**, an editable "Rental days" field
-  and a **"Warehouse" dropdown** (`WAREHOUSE_OPTIONS`: Hamburg/Berlin/Bocholt/
-  Hanover "Umschlag", Frankfurt/Munich "Direct" — per-row because different
-  missing items may need to come from different warehouses, not a single
-  order-level choice). Rental days defaults from the subrental period via the
-  *internal* subrental scale (confirmed by the user 2026-07-03): calendar days
-  → whole weeks (rounded up) → `WEEK_TO_RENTAL_DAYS` lookup (1 week→1, 2→3,
-  3→7, 4→10, 5→14, 6→17, ... up to 12→38; extrapolated beyond 12 weeks). **Not
-  plain calendar days** — client-facing rentals use calendar days, subrental
-  doesn't. Both Rental days and Warehouse are informational for the colleague
-  booking the subrental — **not connected to pricing**, neither is required to
-  download. → **"Download .xlsx"** produces a file
-  (`Subrental_<order>_<from>_<to>.xlsx`) with Order no./period and the
+- **Page heading is "Subrental Assistant"** (changed from "Missing items from a
+  stock export" on 2026-07-03 — if renaming again, that's the only place the
+  old title lived, there's no other reference to update).
+- **What it does:** upload a stock/availability export (`.xls`/`.xlsx`, same
+  format as the Excel "Subrental" workflow) — **Order no. and the subrental
+  period (from/to) fields are hidden until a file is uploaded** (`#orderFieldsRow`
+  starts `display:none`, revealed by JS the moment a file is chosen, before
+  parsing even finishes — this was deliberate on 2026-07-03: don't move it back
+  to always-visible-up-front without checking, that's the second time the
+  visibility of a section here has been tuned based on user feedback). Order
+  no. auto-fills from the uploaded filename's longest digit run if it contains
+  one (e.g. "Missing items order 2610293.xls" → "2610293" — still editable) →
+  every row with `Missing stock > 0` is extracted (columns identified by header
+  name: "Item number", "Description", "Missing stock") → **item numbers
+  starting with `19` are excluded entirely** (local-warehouse-only articles —
+  can never be subrented from elsewhere; this is different from the Master
+  Datenbestand merge above, which is about looking up *description* data for
+  19-prefix items, not about whether they're eligible for subrental at all) →
+  shown as an on-screen preview table with, **per row**, an editable "Rental
+  days" field and a **"Warehouse" dropdown** (`WAREHOUSE_OPTIONS`:
+  Hamburg/Berlin/Bocholt/Hanover "Umschlag", Frankfurt/Munich "Direct" —
+  per-row because different missing items may need to come from different
+  warehouses, not a single order-level choice). Rental days defaults from the
+  subrental period via the *internal* subrental scale (confirmed by the user
+  2026-07-03): calendar days → whole weeks (rounded up) →
+  `WEEK_TO_RENTAL_DAYS` lookup (1 week→1, 2→3, 3→7, 4→10, 5→14, 6→17, ... up to
+  12→38; extrapolated beyond 12 weeks). **Not plain calendar days** —
+  client-facing rentals use calendar days, subrental doesn't. Since the period
+  fields are usually filled in *after* upload (see above), `refreshRentalDaysDefaults()`
+  is wired to both date inputs' `input` event and overwrites every currently
+  rendered row's Rental days box the moment the period changes — don't remove
+  this or defaults will stay blank forever for anyone following the
+  fields-appear-after-upload flow. Both Rental days and Warehouse are
+  informational for the colleague booking the subrental — **not connected to
+  pricing**, neither is required to download. → **"Download .xlsx"** produces
+  a file (`Subrental_<order>_<from>_<to>.xlsx`) with Order no./period and the
   Art.Nr./Amount/Description/Rental days/Warehouse rows (reading the live,
   possibly-edited per-row values from the DOM at download time via
   `getRowsWithCurrentInputs()`) — meant to contain everything needed to submit
   the internal subrental request. "Copy as text" (tab-separated, same live
   values) is also available. No login; the page is fully public.
+- **No explanatory note box below the upload card** — removed on 2026-07-03 per
+  explicit request (there used to be a `.note` div explaining the 19-prefix
+  exclusion, Rental days scale, etc.; the CSS rule was deleted too since
+  nothing uses it anymore). Don't re-add a wall of explanatory text there
+  without checking — the user wants this page terse.
 - **No Setup Cost / no cost calculation on this page** — removed on 2026-07-03
   per explicit correction: Setup Cost is an RFQ-tool concern only, not part of
   this workflow. `datenbestand.json` still stores the `s` (setup cost EUR)
@@ -80,8 +97,11 @@ pattern as the Transport calculator above.
   text (too easy to miss) → made always-visible (took up permanent space) →
   settled on collapsed-with-a-clear-icon on 2026-07-03 as the balance the user
   wanted. Keep the plus-icon affordance if touching this again — don't revert
-  to either previous version without checking. Has its own upload
-  button — same auto-commit-via-GitHub-API pattern as the
+  to either previous version without checking. The descriptive paragraph
+  inside was also cut down on 2026-07-03 from a detailed column-by-column
+  breakdown to a single line ("Upload an updated product list (Master
+  Datenbestand) here:") — the detail wasn't wanted, keep it terse if editing.
+  Has its own upload button — same auto-commit-via-GitHub-API pattern as the
   Transport price-sheet upload below (own PAT prompt, own `localStorage` key is
   shared since it's the same `gh_token` — same repo, same permissions needed).
   Rebuilds `subrental/datenbestand.json` from an uploaded Master Datenbestand
