@@ -50,3 +50,13 @@ Everything lives at the top of `<script>` in `index.html`:
 - Add prices for any missing routes/cities in `RATES_EUR` as they become
   available.
 - Verify the exchange rates in `FX` against current rates.
+
+## Subrental calculator (`subrental/`)
+
+A second standalone page in this repo: upload a stock/availability export and
+get the missing items (Missing stock > 0) with Setup Cost converted to DKK.
+
+**Live:** https://matiasbjerre-hub.github.io/Transport/subrental/
+
+See `CLAUDE.md` → "Subrental calculator" for the full details (data model,
+upload behaviour, what's deliberately not ported from the Excel version yet).

@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rent.Group — Subrental Calculator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+<style>
+  :root {
+    --brand: #1a1a1a;
+    --accent: #c8102e;
+    --bg: #000000;
+    --card: #ffffff;
+    --line: #e3e3e1;
+    --text: #1a1a1a;
+    --muted: #6b6b6b;
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: 'Montserrat', system-ui, sans-serif;
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+  }
+  header {
+    padding: 1.5rem 2.5rem;
+    display: flex;
+    align-items: center;
+    gap: 1.1rem;
+    flex-wrap: wrap;
+  }
+  header img.logo { height: 46px; width: auto; display: block; }
+  main {
+    max-width: 780px;
+    margin: 0 auto;
+    padding: 0 1.5rem 4rem;
+  }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 1.75rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  }
+  .card h2 {
+    font-size: 1rem;
+    font-weight: 600;
+    margin: 0 0 1.25rem;
+  }
+  .toggle {
+    padding: 0.75rem 1.1rem;
+    font-family: inherit;
+    font-size: 0.95rem;
+    font-weight: 600;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: #fff;
+    color: var(--text);
+    cursor: pointer;
+    transition: all 0.15s;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .toggle:hover { border-color: var(--accent); }
+  .upstatus { font-size: 0.85rem; margin-top: 0.6rem; min-height: 1.2em; }
+  .upstatus.ok { color: #1a7f37; }
+  .upstatus.err { color: var(--accent); }
+  .upstatus.busy { color: var(--muted); }
+  .results-scroll {
+    width: 100%;
+    overflow-x: auto;
+    margin-top: 1.25rem;
+  }
+  table.results {
+    width: 100%;
+    min-width: 480px;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+  }
+  table.results th, table.results td {
+    padding: 0.55rem 0.7rem;
+    border-bottom: 1px solid var(--line);
+    text-align: left;
+  }
+  table.results th {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--muted);
+  }
+  table.results td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  table.results tr.total td { font-weight: 700; border-top: 2px solid var(--brand); border-bottom: none; }
+  table.results tr.flag-local td.flag { color: #b45309; }
+  table.results tr.flag-missing td.flag { color: var(--accent); font-weight: 600; }
+  .flag-note { font-size: 0.75rem; color: var(--muted); }
+  .empty-msg { color: var(--muted); font-size: 0.9rem; padding: 0.5rem 0; }
+  .note {
+    font-size: 0.8rem;
+    color: var(--muted);
+    margin-top: 1rem;
+    padding: 0.9rem;
+    background: #fafaf9;
+    border-radius: 10px;
+    border-left: 3px solid var(--accent);
+  }
+  .admin {
+    margin-top: 2rem;
+    padding-top: 1.25rem;
+    border-top: 1px dashed var(--line);
+  }
+  .admin summary {
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--muted);
+  }
+  footer {
+    text-align: center;
+    font-size: 0.75rem;
+    color: #999999;
+    padding: 2rem;
+  }
+</style>
+</head>
+<body>
+  <header>
+    <img class="logo" src="../logo.png" alt="Rent.Group">
+  </header>
+
+  <main>
+    <div class="card">
+      <h2>Missing items &amp; Setup Cost from a stock export</h2>
+      <p style="font-size:0.9rem;color:var(--muted);margin-top:0">
+        Upload the stock/availability export (.xls/.xlsx) for an order. Every item
+        with <strong>Missing stock &gt; 0</strong> is listed below with its Setup
+        Cost, converted to DKK.
+      </p>
+
+      <input type="file" id="stockFile" accept=".xlsx,.xls" hidden>
+      <button class="toggle" id="stockUploadBtn">⬆ Upload stock export</button>
+      <span id="stockFileName" style="font-size:0.85rem;color:var(--muted);margin-left:0.5rem"></span>
+      <div id="stockStatus" class="upstatus"></div>
+
+      <div id="resultsArea"></div>
+
+      <div class="note">
+        <strong>How this is calculated:</strong> Setup Cost = quantity × Setup
+        cost (€, from the master data) × 7.46038 (fixed EUR→DKK peg rate).
+        Item numbers starting with <strong>19</strong> are local Scandinavian
+        articles that may legitimately be missing from the master data — those
+        rows show 0 with a note rather than being flagged as an error. Any other
+        item not found in the master data is flagged in red as a genuine data gap.
+      </div>
+    </div>
+
+    <details class="admin">
+      <summary>Update master data</summary>
+      <div class="card" style="margin-top:1rem">
+        <h2>Refresh the item master data</h2>
+        <p style="font-size:0.85rem;color:var(--muted);margin-top:0">
+          Upload a new "Master Datenbestand" file (.xlsx, columns: Item number,
+          Article category, Article group, Description (DE), Description,
+          Description 2, Rental price €, Cleaning cost €, Setup cost €,
+          Replacement value €, Weight (g), Volume (m3), Ironing cost €,
+          Unit/package). This rebuilds <code>datenbestand.json</code> and pushes
+          it to GitHub — the live page updates automatically in about a minute.
+        </p>
+        <input type="file" id="masterFile" accept=".xlsx,.xls" hidden>
+        <button class="toggle" id="masterUploadBtn">⬆ Update master data</button>
+        <div id="masterStatus" class="upstatus"></div>
+      </div>
+    </details>
+  </main>
+
+  <footer>
+    Rent.Group · Subrental calculator
+  </footer>
+
+<script>
+/* ============================================================
+   CONFIGURATION
+   ============================================================ */
+const FX_DKK_PER_EUR = 7.46038; /* fixed ERM II peg rate, DKK per EUR */
+
+/* GitHub target for the auto-push on "update master data". */
+const GH = {
+  owner: "matiasbjerre-hub",
+  repo: "Transport",
+  branch: "claude/transport-repo-setup-ksz2ec",
+  path: "subrental/datenbestand.json"
+};
+
+/* Item master data: { items: { "artnr": { d: description, s: setupCostEUR } } } */
+let DB = { items: {} };
+
+const stockFileEl = document.getElementById("stockFile");
+const stockUploadBtn = document.getElementById("stockUploadBtn");
+const stockFileNameEl = document.getElementById("stockFileName");
+const stockStatusEl = document.getElementById("stockStatus");
+const resultsAreaEl = document.getElementById("resultsArea");
+
+const masterFileEl = document.getElementById("masterFile");
+const masterUploadBtn = document.getElementById("masterUploadBtn");
+const masterStatusEl = document.getElementById("masterStatus");
+
+function setStatus(el, msg, cls) {
+  el.textContent = msg;
+  el.className = "upstatus" + (cls ? " " + cls : "");
+}
+
+function money(dkk) {
+  return new Intl.NumberFormat("en-GB", {
+    style: "currency", currency: "DKK", maximumFractionDigits: 2
+  }).format(dkk);
+}
+
+/* ---- Load the item master data ---- */
+fetch("datenbestand.json?ts=" + Date.now())
+  .then(function (r) { return r.ok ? r.json() : null; })
+  .then(function (j) { if (j && j.items) DB = j; })
+  .catch(function () { /* keep empty DB; results will show "not found" for everything */ });
+
+/* ---- Find a column index by header name (case-insensitive, trimmed) ---- */
+function findCol(headerRow, name) {
+  for (let i = 0; i < headerRow.length; i++) {
+    const h = headerRow[i];
+    if (typeof h === "string" && h.trim().toLowerCase() === name.toLowerCase()) return i;
+  }
+  return -1;
+}
+
+/* ---- Parse the uploaded stock export: return [{itemNo, qty, desc}] for Missing stock > 0 ---- */
+function parseStockWorkbook(buf) {
+  const wb = XLSX.read(buf, { type: "array" });
+  const ws = wb.Sheets[wb.SheetNames[0]];
+  const rows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true });
+  if (!rows.length) throw new Error("Empty sheet");
+
+  const header = rows[0];
+  const cItem = findCol(header, "Item number");
+  const cDesc = findCol(header, "Description");
+  const cMissing = findCol(header, "Missing stock");
+  if (cItem === -1 || cDesc === -1 || cMissing === -1) {
+    throw new Error('Could not find "Item number", "Description" and "Missing stock" columns in the header row.');
+  }
+
+  const out = [];
+  for (let r = 1; r < rows.length; r++) {
+    const row = rows[r];
+    if (!row) continue;
+    const missing = row[cMissing];
+    if (typeof missing !== "number" || missing <= 0) continue;
+    const itemNo = row[cItem];
+    if (itemNo === undefined || itemNo === null || itemNo === "") continue;
+    out.push({
+      itemNo: String(itemNo).trim(),
+      qty: missing,
+      desc: row[cDesc] !== undefined && row[cDesc] !== null ? String(row[cDesc]) : ""
+    });
+  }
+  return out;
+}
+
+/* ---- Render the results table ---- */
+function renderResults(items) {
+  if (!items.length) {
+    resultsAreaEl.innerHTML = '<div class="empty-msg">No items with Missing stock &gt; 0 found in that file.</div>';
+    return;
+  }
+
+  let total = 0;
+  const rowsHtml = items.map(function (it) {
+    const entry = DB.items[it.itemNo];
+    const isLocal = /^19/.test(it.itemNo);
+    let setupDkk = 0;
+    let rowClass = "";
+    let flagHtml = "";
+
+    if (entry) {
+      setupDkk = it.qty * (entry.s || 0) * FX_DKK_PER_EUR;
+    } else if (isLocal) {
+      rowClass = "flag-local";
+      flagHtml = '<span class="flag-note">local item, no cost data</span>';
+    } else {
+      rowClass = "flag-missing";
+      flagHtml = '<span class="flag-note">not in master data</span>';
+    }
+    total += setupDkk;
+
+    const desc = entry && entry.d ? entry.d : it.desc;
+
+    return '<tr class="' + rowClass + '">' +
+      "<td>" + it.itemNo + "</td>" +
+      '<td class="num">' + it.qty + "</td>" +
+      "<td>" + desc + " " + flagHtml + "</td>" +
+      '<td class="num flag">' + money(setupDkk) + "</td>" +
+      "</tr>";
+  }).join("");
+
+  resultsAreaEl.innerHTML =
+    '<div class="results-scroll"><table class="results" id="resultsTable">' +
+    "<tr><th>Art.Nr.</th><th>Qty</th><th>Description</th><th>Setup Cost (DKK)</th></tr>" +
+    rowsHtml +
+    '<tr class="total"><td colspan="3">Total</td><td class="num">' + money(total) + "</td></tr>" +
+    "</table></div>" +
+    '<button class="toggle" id="copyBtn" style="margin-top:1rem">⧉ Copy as text</button>' +
+    '<span id="copyStatus" style="font-size:0.85rem;color:var(--muted);margin-left:0.5rem"></span>';
+
+  document.getElementById("copyBtn").addEventListener("click", function () {
+    copyResultsAsText(items, total);
+  });
+}
+
+function copyResultsAsText(items, total) {
+  const lines = ["Art.Nr.\tQty\tDescription\tSetup Cost (DKK)"];
+  items.forEach(function (it) {
+    const entry = DB.items[it.itemNo];
+    const setupDkk = entry ? it.qty * (entry.s || 0) * FX_DKK_PER_EUR : 0;
+    const desc = entry && entry.d ? entry.d : it.desc;
+    lines.push(it.itemNo + "\t" + it.qty + "\t" + desc + "\t" + setupDkk.toFixed(2));
+  });
+  lines.push("Total\t\t\t" + total.toFixed(2));
+  const text = lines.join("\n");
+  navigator.clipboard.writeText(text).then(function () {
+    document.getElementById("copyStatus").textContent = "Copied.";
+  }).catch(function () {
+    document.getElementById("copyStatus").textContent = "Could not copy — select and copy the table manually.";
+  });
+}
+
+/* ---- Wire the stock-export upload ---- */
+stockUploadBtn.addEventListener("click", function () { stockFileEl.click(); });
+stockFileEl.addEventListener("change", function () {
+  const f = stockFileEl.files[0];
+  if (!f) return;
+  stockFileNameEl.textContent = f.name;
+  setStatus(stockStatusEl, "Reading " + f.name + "…", "busy");
+  const reader = new FileReader();
+  reader.onload = function () {
+    try {
+      const items = parseStockWorkbook(reader.result);
+      setStatus(stockStatusEl, "Found " + items.length + " missing item row(s).", "ok");
+      renderResults(items);
+    } catch (err) {
+      setStatus(stockStatusEl, "Could not read file: " + err.message, "err");
+      resultsAreaEl.innerHTML = "";
+    }
+    stockFileEl.value = "";
+  };
+  reader.readAsArrayBuffer(f);
+});
+
+/* ============================================================
+   MASTER DATA REFRESH (mirrors Transport's rates.json upload)
+   ============================================================ */
+function findColByAny(headerRow, names) {
+  for (const n of names) {
+    const i = findCol(headerRow, n);
+    if (i !== -1) return i;
+  }
+  return -1;
+}
+
+function parseMasterWorkbook(buf) {
+  const wb = XLSX.read(buf, { type: "array" });
+  const ws = wb.Sheets[wb.SheetNames[0]];
+  const rows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true });
+  if (!rows.length) throw new Error("Empty sheet");
+
+  const header = rows[0];
+  const cItem = findColByAny(header, ["Item number"]);
+  const cDesc = findColByAny(header, ["Description"]);
+  const cSetup = findColByAny(header, ["Setup cost €", "Setup cost"]);
+  if (cItem === -1 || cDesc === -1 || cSetup === -1) {
+    throw new Error('Could not find "Item number", "Description" and "Setup cost €" columns in the header row.');
+  }
+
+  const items = {};
+  for (let r = 1; r < rows.length; r++) {
+    const row = rows[r];
+    if (!row) continue;
+    const itemNo = row[cItem];
+    if (itemNo === undefined || itemNo === null || itemNo === "") continue;
+    const setup = row[cSetup];
+    items[String(itemNo).trim()] = {
+      d: row[cDesc] !== undefined && row[cDesc] !== null ? String(row[cDesc]) : "",
+      s: typeof setup === "number" ? Math.round(setup * 100) / 100 : 0
+    };
+  }
+  return items;
+}
+
+function getToken(force) {
+  let t = localStorage.getItem("gh_token");
+  if (!t || force) {
+    t = window.prompt(
+      "Paste a GitHub fine-grained token with Contents: Read/Write on the " +
+      "Transport repo. It is stored only in this browser (localStorage)."
+    );
+    if (t) { t = t.trim(); localStorage.setItem("gh_token", t); }
+  }
+  return t;
+}
+
+function commitMasterData(items) {
+  const token = getToken();
+  if (!token) { setStatus(masterStatusEl, "Cancelled — no token provided.", "err"); return; }
+  const payload = {
+    updated: new Date().toISOString(),
+    source: "Uploaded via web app",
+    items: items
+  };
+  const content = btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
+  const api = "https://api.github.com/repos/" + GH.owner + "/" + GH.repo +
+              "/contents/" + GH.path;
+  const headers = {
+    "Authorization": "Bearer " + token,
+    "Accept": "application/vnd.github+json"
+  };
+  setStatus(masterStatusEl, "Pushing to GitHub…", "busy");
+  fetch(api + "?ref=" + GH.branch, { headers: headers })
+    .then(function (r) { return r.ok ? r.json() : {}; })
+    .then(function (cur) {
+      return fetch(api, {
+        method: "PUT",
+        headers: headers,
+        body: JSON.stringify({
+          message: "Update subrental master data via upload",
+          content: content,
+          branch: GH.branch,
+          sha: cur.sha
+        })
+      });
+    })
+    .then(function (r) {
+      if (!r.ok) { return r.text().then(function (t) { throw new Error(r.status + " " + t); }); }
+      setStatus(masterStatusEl, "✓ Pushed — deploy started. Live in ~1 minute.", "ok");
+    })
+    .catch(function (e) {
+      if (/\b40[13]\b/.test(e.message)) {
+        localStorage.removeItem("gh_token");
+        setStatus(masterStatusEl, "Push failed (auth). Token cleared — try again to re-enter it.", "err");
+      } else {
+        setStatus(masterStatusEl, "Push failed: " + e.message, "err");
+      }
+    });
+}
+
+masterUploadBtn.addEventListener("click", function () { masterFileEl.click(); });
+masterFileEl.addEventListener("change", function () {
+  const f = masterFileEl.files[0];
+  if (!f) return;
+  setStatus(masterStatusEl, "Reading " + f.name + "…", "busy");
+  const reader = new FileReader();
+  reader.onload = function () {
+    try {
+      const items = parseMasterWorkbook(reader.result);
+      const n = Object.keys(items).length;
+      if (n === 0) { setStatus(masterStatusEl, "No valid items found in that sheet.", "err"); return; }
+      DB = { items: items };
+      setStatus(masterStatusEl, "Parsed " + n + " items. Updating master data…", "busy");
+      commitMasterData(items);
+    } catch (err) {
+      setStatus(masterStatusEl, "Could not read file: " + err.message, "err");
+    }
+    masterFileEl.value = "";
+  };
+  reader.readAsArrayBuffer(f);
+});
+</script>
+</body>
+</html>

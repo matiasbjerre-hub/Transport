@@ -15,6 +15,49 @@ upload that auto-commits and re-deploys.
 - **Working/default branch:** `claude/transport-repo-setup-ksz2ec`
   (the GitHub Pages deploy runs on push to this branch).
 
+## Subrental calculator (`subrental/`)
+
+A second, independent static page in this same repo (the Pages workflow deploys
+the whole repo root, so it needs no separate setup). Same no-build/no-framework
+pattern as the Transport calculator above.
+
+- **Live site:** https://matiasbjerre-hub.github.io/Transport/subrental/
+- **Files:**
+  - `subrental/index.html` — the whole app (HTML + CSS + JS in one file).
+  - `subrental/datenbestand.json` — item master data, **single source of
+    truth**: `{ items: { "<Art.Nr.>": { d: description, s: setupCostEUR } } }`.
+    Currently ~14,931 items — the original German "Master Datenbestand" plus 14
+    local Scandinavian items (art. numbers starting `19`) copied in from the RFQ
+    repo's `Varekatalog.js` `UI_PRODUCT_DATA` table (the only 14 of its 163
+    entries not already covered by the German data — the other 149 overlap and
+    were intentionally left alone to avoid downgrading rows that already have
+    richer German-sourced data).
+- **What it does:** upload a stock/availability export (`.xls`/`.xlsx`, same
+  format as the Excel "Subrental" workflow) → every row with `Missing stock > 0`
+  is extracted (columns identified by header name: "Item number", "Description",
+  "Missing stock") → Setup Cost is looked up per item and converted to DKK
+  (`qty × Setup cost € × 7.46038`, the fixed EUR/DKK peg rate) → results shown
+  as an on-screen table with a "Copy as text" button (tab-separated, pastes into
+  Excel/email). No login; the page is fully public.
+- **Item flagging:** item numbers starting with `19` that aren't in
+  `datenbestand.json` are local items expected to be absent — shown with an
+  amber note, Setup Cost 0, not treated as an error. Any other item not found is
+  flagged in red as a genuine data gap. A field value of `0` in the data is
+  always valid and never triggers a flag by itself — only "item not found at
+  all" does.
+- **Updating the master data:** the collapsed "Update master data" section has
+  its own upload button — same auto-commit-via-GitHub-API pattern as the
+  Transport price-sheet upload below (own PAT prompt, own `localStorage` key is
+  shared since it's the same `gh_token` — same repo, same permissions needed).
+  Rebuilds `subrental/datenbestand.json` from an uploaded Master Datenbestand
+  `.xlsx` (columns identified by header name: "Item number", "Description",
+  "Setup cost €").
+- **Not ported (yet):** Price/Discount/Total (D/E/F), Weight/Volume (K/L), and
+  the rental-days factor (H/J) from the Excel template — this page only
+  replicates the Setup Cost (M) column and the missing-items extraction. Ask
+  before assuming these should be added; they weren't part of the original
+  scope.
+
 ## The three projects
 
 | Project | Where | Tech | My access |
