@@ -43,8 +43,12 @@ pattern as the Transport calculator above.
   Datenbestand merge above, which is about looking up *description* data for
   19-prefix items, not about whether they're eligible for subrental at all) →
   shown as an on-screen preview table with a **per-row editable "Rental days"
-  field** (defaults to the length of the subrental period, but each row can be
-  overridden individually) → **"Download .xlsx"** produces a file
+  field** — defaults from the subrental period via the *internal* subrental
+  scale (confirmed by the user 2026-07-03): calendar days → whole weeks
+  (rounded up) → `WEEK_TO_RENTAL_DAYS` lookup (1 week→1, 2→3, 3→7, 4→10, 5→14,
+  6→17, ... up to 12→38; extrapolated beyond 12 weeks). **Not plain calendar
+  days** — client-facing rentals use calendar days, subrental doesn't. Each
+  row can still be overridden individually. → **"Download .xlsx"** produces a file
   (`Subrental_<order>_<from>_<to>.xlsx`) with Warehouse/Order no./period and the
   Art.Nr./Amount/Description/Rental days rows (using whatever the user last
   typed into each Rental days input, read live from the DOM at download time)
@@ -86,12 +90,16 @@ pattern as the Transport calculator above.
   right before calling it done. Also check whether the template still wants a
   Setup Cost column at all before re-adding one — it was explicitly removed
   from this page's scope.
-- **Not ported:** Price/Discount/Total (D/E/F) and the rental-days *factor*
-  formula (J, e.g. `H=2→1.25`) from the Excel template — this page only does
-  plain Rental days entry, no factor/multiplier logic. K/L (Weight/Volume)
-  were removed from the Excel template itself on 2026-07-03, so they're moot.
-  Setup Cost (M) was added then explicitly removed — see above. Ask before
-  assuming any of these should be (re-)added.
+- **Not ported:** Price/Discount/Total (D/E/F) from the Excel template. The
+  rental-days *factor* formula (J: `weeks===2 ? 1.25 : weeks>2 ? (RD-2)*0.15+1.25
+  : RD`) is documented as a comment next to `WEEK_TO_RENTAL_DAYS` in
+  `index.html` (verified it reproduces the user's confirmed factors exactly)
+  but **not surfaced anywhere in the UI or download** - there's no cost calc on
+  this page, so nothing to multiply it against yet. If a "Rental factor" column
+  is wanted later, the formula is already there, just needs wiring up. K/L
+  (Weight/Volume) were removed from the Excel template itself on 2026-07-03,
+  so they're moot. Setup Cost (M) was added then explicitly removed — see
+  above. Ask before assuming any of these should be (re-)added.
 
 ## The three projects
 

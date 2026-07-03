@@ -226,8 +226,10 @@
         articles — these can only be subrented from our own warehouse, so
         they're excluded entirely rather than listed. Any other item not found
         in the master data is flagged in red (description shown as given in the
-        stock export instead). <strong>Rental days</strong> defaults to the
-        length of the subrental period above, but is editable per row.
+        stock export instead). <strong>Rental days</strong> defaults from the
+        subrental period above using the internal subrental scale (not plain
+        calendar days) — e.g. a 2-week period defaults to 3 rental days, 3
+        weeks to 7 — but is editable per row if an item needs a different value.
       </div>
     </div>
 
@@ -354,14 +356,32 @@ function computeRows(items) {
   });
 }
 
-/* Number of days between two "YYYY-MM-DD" date-input values (1 if same day,
-   "" if either is missing/invalid). Used as the default per-row Rental days. */
-function daysBetween(from, to) {
+/* Internal subrental "Rental days" (RD) are NOT calendar days - they're a
+   degressive billing count keyed by how many whole weeks the period spans
+   (client-facing rentals use plain calendar days; subrental doesn't). Table
+   from the Excel "Skabelon til Claude Code" template, confirmed by the user
+   on 2026-07-03. The matching price multiply-factor (also confirmed) is
+   J = weeks===2 ? 1.25 : weeks>2 ? (RD-2)*0.15+1.25 : RD - not shown in this
+   tool (no cost calc here), but kept here as a comment in case it's needed
+   later: weeks 1-12 -> factor 1.00, 1.40, 2.00, 2.45, 3.05, 3.50, 4.10, 4.55,
+   5.15, 5.60, 6.20, 6.65. */
+const WEEK_TO_RENTAL_DAYS = { 1: 1, 2: 3, 3: 7, 4: 10, 5: 14, 6: 17, 7: 21, 8: 24, 9: 28, 10: 31, 11: 35, 12: 38 };
+
+/* Rental days for a "YYYY-MM-DD" period: calendar days -> whole weeks (rounded
+   up) -> RD via the table above. Extrapolates past 12 weeks using the same
+   alternating +4/+3 pattern (rare in practice; flagged so it's not silently
+   wrong). Returns "" if the period isn't set or is invalid. */
+function rentalDaysForPeriod(from, to) {
   if (!from || !to) return "";
   const d1 = new Date(from + "T00:00:00");
   const d2 = new Date(to + "T00:00:00");
-  const diff = Math.round((d2 - d1) / 86400000);
-  return diff > 0 ? diff : (diff === 0 ? 1 : "");
+  const calendarDays = Math.round((d2 - d1) / 86400000);
+  if (calendarDays <= 0) return "";
+  const weeks = Math.ceil(calendarDays / 7);
+  if (WEEK_TO_RENTAL_DAYS[weeks] !== undefined) return WEEK_TO_RENTAL_DAYS[weeks];
+  let rd = WEEK_TO_RENTAL_DAYS[12];
+  for (let w = 13; w <= weeks; w++) rd += (w % 2 === 0) ? 3 : 4;
+  return rd;
 }
 
 /* Current parsed rows, kept so the Download button can (re)build the
@@ -379,7 +399,7 @@ function renderResults(items, excludedLocal) {
     return;
   }
 
-  const defaultDays = daysBetween(
+  const defaultDays = rentalDaysForPeriod(
     document.getElementById("periodFrom").value,
     document.getElementById("periodTo").value
   );
