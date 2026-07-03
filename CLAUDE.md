@@ -72,10 +72,15 @@ pattern as the Transport calculator above.
   19-prefix exclusion above) is flagged in red — its description falls back to
   whatever the stock export itself had. Purely informational now that there's
   no cost calc riding on it.
-- **Updating the master data:** a directly-visible "Refresh the item master
-  data" card (originally collapsed behind a `<details>` toggle - un-collapsed
-  on 2026-07-03 because it was too easy to miss; keep it directly visible,
-  matching how Transport's own upload button is shown) has its own upload
+- **Updating the master data:** a "Refresh the item master data" section,
+  collapsed by default behind a `<details class="admin">`/`<summary>` with a
+  circular **"+" icon** (rotates to look like "×" when open via CSS
+  `details.admin[open] summary .plus-icon { transform: rotate(45deg) }` — no
+  JS needed, native `<details>` toggle). History: started collapsed with plain
+  text (too easy to miss) → made always-visible (took up permanent space) →
+  settled on collapsed-with-a-clear-icon on 2026-07-03 as the balance the user
+  wanted. Keep the plus-icon affordance if touching this again — don't revert
+  to either previous version without checking. Has its own upload
   button — same auto-commit-via-GitHub-API pattern as the
   Transport price-sheet upload below (own PAT prompt, own `localStorage` key is
   shared since it's the same `gh_token` — same repo, same permissions needed).

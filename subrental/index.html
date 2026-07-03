@@ -170,6 +170,46 @@
     border-radius: 10px;
     border-left: 3px solid var(--accent);
   }
+  details.admin summary {
+    cursor: pointer;
+    list-style: none;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text);
+    padding: 0.9rem 1.1rem;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+  }
+  details.admin summary::-webkit-details-marker { display: none; }
+  details.admin summary .plus-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.4rem;
+    height: 1.4rem;
+    border-radius: 50%;
+    border: 1px solid var(--line);
+    color: var(--muted);
+    font-size: 1rem;
+    line-height: 1;
+    flex: 0 0 auto;
+    transition: transform 0.15s;
+  }
+  details.admin[open] summary .plus-icon { transform: rotate(45deg); }
+  details.admin[open] summary {
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+  }
+  details.admin .card {
+    margin-bottom: 1.5rem;
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+    border-top: none;
+  }
   footer {
     text-align: center;
     font-size: 0.75rem;
@@ -230,22 +270,24 @@
       </div>
     </div>
 
-    <div class="card">
-      <h2>Refresh the item master data</h2>
-      <p style="font-size:0.85rem;color:var(--muted);margin-top:0">
-        Upload a new "Master Datenbestand" file (.xlsx, columns: Item number,
-        Article category, Article group, Description (DE), Description,
-        Description 2, Rental price €, Cleaning cost €, Setup cost €,
-        Replacement value €, Weight (g), Volume (m3), Ironing cost €,
-        Unit/package — only "Item number" and "Description" are actually used
-        here; Setup cost is for the RFQ tool, not this one). This rebuilds
-        <code>datenbestand.json</code> and pushes it to GitHub — the live page
-        updates automatically in about a minute.
-      </p>
-      <input type="file" id="masterFile" accept=".xlsx,.xls" hidden>
-      <button class="toggle" id="masterUploadBtn">⬆ Update master data</button>
-      <div id="masterStatus" class="upstatus"></div>
-    </div>
+    <details class="admin">
+      <summary><span class="plus-icon">+</span> Refresh the item master data</summary>
+      <div class="card">
+        <p style="font-size:0.85rem;color:var(--muted);margin-top:0">
+          Upload a new "Master Datenbestand" file (.xlsx, columns: Item number,
+          Article category, Article group, Description (DE), Description,
+          Description 2, Rental price €, Cleaning cost €, Setup cost €,
+          Replacement value €, Weight (g), Volume (m3), Ironing cost €,
+          Unit/package — only "Item number" and "Description" are actually used
+          here; Setup cost is for the RFQ tool, not this one). This rebuilds
+          <code>datenbestand.json</code> and pushes it to GitHub — the live page
+          updates automatically in about a minute.
+        </p>
+        <input type="file" id="masterFile" accept=".xlsx,.xls" hidden>
+        <button class="toggle" id="masterUploadBtn">⬆ Update master data</button>
+        <div id="masterStatus" class="upstatus"></div>
+      </div>
+    </details>
   </main>
 
   <footer>
