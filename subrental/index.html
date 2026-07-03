@@ -85,7 +85,7 @@
     text-transform: uppercase;
     letter-spacing: 0.03em;
   }
-  .field-row input {
+  .field-row input, .field-row select {
     width: 100%;
     padding: 0.65rem 0.8rem;
     font-family: inherit;
@@ -95,7 +95,21 @@
     background: #fff;
     color: var(--text);
   }
-  .field-row input:focus {
+  .field-row input:focus, .field-row select:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(200,16,46,0.12);
+  }
+  input.rental-days {
+    width: 4.5rem;
+    padding: 0.4rem 0.5rem;
+    font-family: inherit;
+    font-size: 0.9rem;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    text-align: right;
+  }
+  input.rental-days:focus {
     outline: none;
     border-color: var(--accent);
     box-shadow: 0 0 0 3px rgba(200,16,46,0.12);
@@ -166,15 +180,26 @@
 
   <main>
     <div class="card">
-      <h2>Missing items &amp; Setup Cost from a stock export</h2>
+      <h2>Missing items from a stock export</h2>
       <p style="font-size:0.9rem;color:var(--muted);margin-top:0">
         Upload the stock/availability export (.xls/.xlsx) for an order. Every item
-        with <strong>Missing stock &gt; 0</strong> is listed with its Setup Cost
-        in DKK, then downloadable as a ready-to-submit .xlsx for the internal
-        subrental request.
+        with <strong>Missing stock &gt; 0</strong> is listed, then downloadable as
+        a ready-to-submit .xlsx for the internal subrental request.
       </p>
 
       <div class="field-row">
+        <div class="field">
+          <label for="warehouse">Warehouse</label>
+          <select id="warehouse">
+            <option value="" selected disabled>Select warehouse…</option>
+            <option value="Hamburg (Umschlag)">Hamburg (Umschlag)</option>
+            <option value="Berlin (Umschlag)">Berlin (Umschlag)</option>
+            <option value="Bocholt (Umschlag)">Bocholt (Umschlag)</option>
+            <option value="Hanover (Umschlag)">Hanover (Umschlag)</option>
+            <option value="Frankfurt - Direct">Frankfurt - Direct</option>
+            <option value="Munich - Direct">Munich - Direct</option>
+          </select>
+        </div>
         <div class="field">
           <label for="orderNo">Order no.</label>
           <input type="text" id="orderNo" placeholder="e.g. 2610293">
@@ -197,12 +222,12 @@
       <div id="resultsArea"></div>
 
       <div class="note">
-        <strong>How this is calculated:</strong> Setup Cost = quantity × Setup
-        cost (€, from the master data) × 7.46038 (fixed EUR→DKK peg rate).
         Item numbers starting with <strong>19</strong> are local Scandinavian
         articles — these can only be subrented from our own warehouse, so
         they're excluded entirely rather than listed. Any other item not found
-        in the master data is flagged in red as a genuine data gap.
+        in the master data is flagged in red (description shown as given in the
+        stock export instead). <strong>Rental days</strong> defaults to the
+        length of the subrental period above, but is editable per row.
       </div>
     </div>
 
@@ -215,8 +240,10 @@
           Article category, Article group, Description (DE), Description,
           Description 2, Rental price €, Cleaning cost €, Setup cost €,
           Replacement value €, Weight (g), Volume (m3), Ironing cost €,
-          Unit/package). This rebuilds <code>datenbestand.json</code> and pushes
-          it to GitHub — the live page updates automatically in about a minute.
+          Unit/package — only "Item number" and "Description" are actually used
+          here; Setup cost is for the RFQ tool, not this one). This rebuilds
+          <code>datenbestand.json</code> and pushes it to GitHub — the live page
+          updates automatically in about a minute.
         </p>
         <input type="file" id="masterFile" accept=".xlsx,.xls" hidden>
         <button class="toggle" id="masterUploadBtn">⬆ Update master data</button>
@@ -233,8 +260,6 @@
 /* ============================================================
    CONFIGURATION
    ============================================================ */
-const FX_DKK_PER_EUR = 7.46038; /* fixed ERM II peg rate, DKK per EUR */
-
 /* GitHub target for the auto-push on "update master data". */
 const GH = {
   owner: "matiasbjerre-hub",
@@ -243,7 +268,9 @@ const GH = {
   path: "subrental/datenbestand.json"
 };
 
-/* Item master data: { items: { "artnr": { d: description, s: setupCostEUR } } } */
+/* Item master data: { items: { "artnr": { d: description, s: setupCostEUR } } }
+   "s" (Setup cost) is kept in the data for the RFQ tool's sake but is not used
+   here - Setup Cost display/calc was intentionally removed from this page. */
 let DB = { items: {} };
 
 const stockFileEl = document.getElementById("stockFile");
@@ -259,12 +286,6 @@ const masterStatusEl = document.getElementById("masterStatus");
 function setStatus(el, msg, cls) {
   el.textContent = msg;
   el.className = "upstatus" + (cls ? " " + cls : "");
-}
-
-function money(dkk) {
-  return new Intl.NumberFormat("en-GB", {
-    style: "currency", currency: "DKK", maximumFractionDigits: 2
-  }).format(dkk);
 }
 
 /* ---- Load the item master data ---- */
@@ -320,32 +341,37 @@ function parseStockWorkbook(buf) {
   return { items: out, excludedLocal: excludedLocal };
 }
 
-/* ---- Compute {itemNo, qty, desc, setupDkk, found} rows + total from parsed items ---- */
+/* ---- Compute {itemNo, qty, desc, found} rows from parsed items (no cost calc) ---- */
 function computeRows(items) {
-  let total = 0;
-  const rows = items.map(function (it) {
+  return items.map(function (it) {
     const entry = DB.items[it.itemNo];
-    const setupDkk = entry ? it.qty * (entry.s || 0) * FX_DKK_PER_EUR : 0;
-    total += setupDkk;
     return {
       itemNo: it.itemNo,
       qty: it.qty,
       desc: entry && entry.d ? entry.d : it.desc,
-      setupDkk: setupDkk,
       found: !!entry
     };
   });
-  return { rows: rows, total: total };
 }
 
-/* Current parsed result, kept so the Download button can (re)build the
-   workbook any time after Order no./dates are edited, without re-parsing. */
-let currentResult = null;
+/* Number of days between two "YYYY-MM-DD" date-input values (1 if same day,
+   "" if either is missing/invalid). Used as the default per-row Rental days. */
+function daysBetween(from, to) {
+  if (!from || !to) return "";
+  const d1 = new Date(from + "T00:00:00");
+  const d2 = new Date(to + "T00:00:00");
+  const diff = Math.round((d2 - d1) / 86400000);
+  return diff > 0 ? diff : (diff === 0 ? 1 : "");
+}
 
-/* ---- Render the on-screen preview table ---- */
+/* Current parsed rows, kept so the Download button can (re)build the
+   workbook any time after the fields are edited, without re-parsing. */
+let currentRows = null;
+
+/* ---- Render the on-screen preview table (Rental days is a live editable input) ---- */
 function renderResults(items, excludedLocal) {
-  const computed = computeRows(items);
-  currentResult = computed;
+  const rows = computeRows(items);
+  currentRows = rows;
 
   if (!items.length) {
     resultsAreaEl.innerHTML = '<div class="empty-msg">No items with Missing stock &gt; 0 found in that file' +
@@ -353,22 +379,28 @@ function renderResults(items, excludedLocal) {
     return;
   }
 
-  const rowsHtml = computed.rows.map(function (r) {
+  const defaultDays = daysBetween(
+    document.getElementById("periodFrom").value,
+    document.getElementById("periodTo").value
+  );
+
+  const rowsHtml = rows.map(function (r, i) {
     const rowClass = r.found ? "" : "flag-missing";
     const flagHtml = r.found ? "" : '<span class="flag-note">not in master data</span>';
     return '<tr class="' + rowClass + '">' +
       "<td>" + r.itemNo + "</td>" +
       '<td class="num">' + r.qty + "</td>" +
-      "<td>" + r.desc + " " + flagHtml + "</td>" +
-      '<td class="num flag">' + money(r.setupDkk) + "</td>" +
+      '<td class="flag">' + r.desc + " " + flagHtml + "</td>" +
+      '<td class="num">' +
+        '<input type="number" class="rental-days" id="rentalDays_' + i + '" min="1" step="1" value="' + defaultDays + '">' +
+      "</td>" +
       "</tr>";
   }).join("");
 
   resultsAreaEl.innerHTML =
     '<div class="results-scroll"><table class="results" id="resultsTable">' +
-    "<tr><th>Art.Nr.</th><th>Qty</th><th>Description</th><th>Setup Cost (DKK)</th></tr>" +
+    "<tr><th>Art.Nr.</th><th>Qty</th><th>Description</th><th>Rental days</th></tr>" +
     rowsHtml +
-    '<tr class="total"><td colspan="3">Total</td><td class="num">' + money(computed.total) + "</td></tr>" +
     "</table></div>" +
     (excludedLocal ? '<p class="flag-note" style="margin:0.5rem 0 0">' + excludedLocal +
       " local-only item row(s) excluded (can only be subrented from our own warehouse).</p>" : "") +
@@ -376,18 +408,29 @@ function renderResults(items, excludedLocal) {
     '<button class="toggle" id="copyBtn" style="margin-top:1rem;margin-left:0.5rem">⧉ Copy as text</button>' +
     '<span id="downloadStatus" style="font-size:0.85rem;color:var(--muted);margin-left:0.5rem"></span>';
 
-  document.getElementById("copyBtn").addEventListener("click", function () {
-    copyResultsAsText(computed.rows, computed.total);
-  });
+  document.getElementById("copyBtn").addEventListener("click", copyResultsAsText);
   document.getElementById("downloadBtn").addEventListener("click", downloadWorkbook);
 }
 
-function copyResultsAsText(rows, total) {
-  const lines = ["Art.Nr.\tQty\tDescription\tSetup Cost (DKK)"];
-  rows.forEach(function (r) {
-    lines.push(r.itemNo + "\t" + r.qty + "\t" + r.desc + "\t" + r.setupDkk.toFixed(2));
+/* ---- Read {itemNo, qty, desc, rentalDays} for every row, rentalDays live from the DOM ---- */
+function getRowsWithCurrentDays() {
+  return currentRows.map(function (r, i) {
+    const el = document.getElementById("rentalDays_" + i);
+    return {
+      itemNo: r.itemNo,
+      qty: r.qty,
+      desc: r.desc,
+      rentalDays: el && el.value !== "" ? el.value : ""
+    };
   });
-  lines.push("Total\t\t\t" + total.toFixed(2));
+}
+
+function copyResultsAsText() {
+  const rows = getRowsWithCurrentDays();
+  const lines = ["Art.Nr.\tQty\tDescription\tRental days"];
+  rows.forEach(function (r) {
+    lines.push(r.itemNo + "\t" + r.qty + "\t" + r.desc + "\t" + r.rentalDays);
+  });
   const text = lines.join("\n");
   navigator.clipboard.writeText(text).then(function () {
     document.getElementById("copyStatus").textContent = "Copied.";
@@ -401,35 +444,37 @@ function copyResultsAsText(rows, total) {
    template can be read and matched exactly (see CLAUDE.md). */
 function downloadWorkbook() {
   const statusEl = document.getElementById("downloadStatus");
+  const warehouse = document.getElementById("warehouse").value;
   const orderNo = document.getElementById("orderNo").value.trim();
   const periodFrom = document.getElementById("periodFrom").value;
   const periodTo = document.getElementById("periodTo").value;
 
-  if (!orderNo || !periodFrom || !periodTo) {
-    statusEl.textContent = "Fill in Order no. and both subrental period dates first.";
+  if (!warehouse || !orderNo || !periodFrom || !periodTo) {
+    statusEl.textContent = "Fill in Warehouse, Order no. and both subrental period dates first.";
     statusEl.className = "upstatus err";
     return;
   }
-  if (!currentResult || !currentResult.rows.length) {
+  if (!currentRows || !currentRows.length) {
     statusEl.textContent = "Nothing to download yet.";
     statusEl.className = "upstatus err";
     return;
   }
 
+  const rows = getRowsWithCurrentDays();
   const aoa = [
     ["Internal subrental request"],
+    ["Warehouse", warehouse],
     ["Order no.", orderNo],
     ["Subrental period — from", periodFrom, "to", periodTo],
     [],
-    ["Art.Nr.", "Amount", "Description", "Setup Cost (DKK)"]
+    ["Art.Nr.", "Amount", "Description", "Rental days"]
   ];
-  currentResult.rows.forEach(function (r) {
-    aoa.push([r.itemNo, r.qty, r.desc, Math.round(r.setupDkk * 100) / 100]);
+  rows.forEach(function (r) {
+    aoa.push([r.itemNo, r.qty, r.desc, r.rentalDays]);
   });
-  aoa.push(["", "", "Total", Math.round(currentResult.total * 100) / 100]);
 
   const ws = XLSX.utils.aoa_to_sheet(aoa);
-  ws["!cols"] = [{ wch: 12 }, { wch: 10 }, { wch: 55 }, { wch: 16 }];
+  ws["!cols"] = [{ wch: 12 }, { wch: 10 }, { wch: 55 }, { wch: 12 }];
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Subrental request");
 
@@ -482,9 +527,9 @@ function parseMasterWorkbook(buf) {
   const header = rows[0];
   const cItem = findColByAny(header, ["Item number"]);
   const cDesc = findColByAny(header, ["Description"]);
-  const cSetup = findColByAny(header, ["Setup cost €", "Setup cost"]);
-  if (cItem === -1 || cDesc === -1 || cSetup === -1) {
-    throw new Error('Could not find "Item number", "Description" and "Setup cost €" columns in the header row.');
+  const cSetup = findColByAny(header, ["Setup cost €", "Setup cost"]); /* optional - not used on this page, kept for the RFQ tool's sake */
+  if (cItem === -1 || cDesc === -1) {
+    throw new Error('Could not find "Item number" and "Description" columns in the header row.');
   }
 
   const items = {};
@@ -493,7 +538,7 @@ function parseMasterWorkbook(buf) {
     if (!row) continue;
     const itemNo = row[cItem];
     if (itemNo === undefined || itemNo === null || itemNo === "") continue;
-    const setup = row[cSetup];
+    const setup = cSetup !== -1 ? row[cSetup] : undefined;
     items[String(itemNo).trim()] = {
       d: row[cDesc] !== undefined && row[cDesc] !== null ? String(row[cDesc]) : "",
       s: typeof setup === "number" ? Math.round(setup * 100) / 100 : 0
