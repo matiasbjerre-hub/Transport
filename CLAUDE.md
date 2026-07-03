@@ -142,13 +142,18 @@ pattern as the Transport calculator above.
   user told me; if AGP's export format ever changes, the column-header-based
   parsing (`Item number`/`Description`/`Missing stock`) is what actually needs
   to keep matching, not the button text.
-- **Known minor redundancy:** the collapsed "Refresh master data" summary text
-  and the paragraph inside it now say almost the same thing ("Upload an
-  updated Master Product list (Master Datenbestand) here." vs "Upload an
-  updated product list (Master Datenbestand) here:") — both were literal
-  find-and-replace requests from the user in separate messages, so left as-is
-  rather than assumed-consolidated. Flag it if touching this section again;
-  the user hasn't said whether the duplication bothers them.
+- **"Advanced settings" (2026-07-03):** the collapsed summary here (and the
+  Transport calculator's `#uploadBtn`, "Update prices (upload sheet)" before)
+  were both renamed to the plain label **"Advanced settings"**, styled smaller
+  and grey (`font-size: 0.8rem`, `color: var(--muted)`) — this superseded and
+  resolved the earlier redundancy where the summary and the paragraph inside
+  it said almost the same thing. In Transport, the override is scoped to
+  `#uploadBtn` specifically (`#uploadBtn { font-size: 0.8rem; color:
+  var(--muted); }`) rather than touching the shared `.toggle` class, since
+  that class is reused by every button on the page (Calculate, 2-ways, Add to
+  list) and must stay at normal size/weight. If Transport ever gets more than
+  one "advanced" action, this same small-grey treatment is the established
+  pattern to reuse, scoped per-button the same way.
 
 ## Tab navigation between Transport and Subrental
 
