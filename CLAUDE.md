@@ -134,6 +134,44 @@ pattern as the Transport calculator above.
   (Weight/Volume) were removed from the Excel template itself on 2026-07-03,
   so they're moot. Setup Cost (M) was added then explicitly removed — see
   above. Ask before assuming any of these should be (re-)added.
+- **"AGP" terminology (2026-07-03):** the stock/availability export the user
+  uploads comes from a system they call "AGP" (tab 4, "Items"). The intro
+  paragraph and upload button both reference this by name now ("Export the
+  contents of 'Items' (Tab 4) in AGP and upload it here." / "Upload AGP export
+  file (.xlsx)") — this isn't explained anywhere in this doc beyond what the
+  user told me; if AGP's export format ever changes, the column-header-based
+  parsing (`Item number`/`Description`/`Missing stock`) is what actually needs
+  to keep matching, not the button text.
+- **Known minor redundancy:** the collapsed "Refresh master data" summary text
+  and the paragraph inside it now say almost the same thing ("Upload an
+  updated Master Product list (Master Datenbestand) here." vs "Upload an
+  updated product list (Master Datenbestand) here:") — both were literal
+  find-and-replace requests from the user in separate messages, so left as-is
+  rather than assumed-consolidated. Flag it if touching this section again;
+  the user hasn't said whether the duplication bothers them.
+
+## Tab navigation between Transport and Subrental
+
+Both pages now share a small pill-style tab bar right below the header logo
+(`nav.tabs`, added 2026-07-03 per explicit user request — the "simple nav bar"
+option from two proposed: this one page-reloads on switch but needed no
+namespacing work; the alternative, in-memory single-page tabs, was rejected
+since both apps define same-named globals like `GH`/`getToken`/`setStatus`
+and would need factoring first).
+
+- **Markup:** `<nav class="tabs"><a href="...">Transport</a><a href="...">Subrental</a></nav>`,
+  with `class="active"` on whichever link matches the current page.
+- **Paths are relative, not absolute** — from `index.html`: `href="./"`
+  (self/active) and `href="subrental/"`; from `subrental/index.html`:
+  `href="../"` and `href="./"` (self/active). Keep them relative if the repo
+  or Pages URL ever changes.
+- **CSS is duplicated in both files** (`nav.tabs`, `nav.tabs a`, `nav.tabs
+  a.active` — identical block in each `<style>`). There's no shared stylesheet
+  between the two pages (single-file-per-page is the whole point of this
+  no-build setup), so if the tab style needs to change, update it in **both**
+  `index.html` and `subrental/index.html` or they'll drift.
+- Switching tabs does a real page navigation (full reload) — this was an
+  accepted tradeoff, not an oversight.
 
 ## The three projects
 

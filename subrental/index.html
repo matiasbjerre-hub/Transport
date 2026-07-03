@@ -35,6 +35,25 @@
     flex-wrap: wrap;
   }
   header img.logo { height: 46px; width: auto; display: block; }
+  nav.tabs {
+    display: flex;
+    gap: 0.5rem;
+    padding: 0 2.5rem 1.25rem;
+    flex-wrap: wrap;
+  }
+  nav.tabs a {
+    font-family: inherit;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--muted);
+    text-decoration: none;
+    padding: 0.5rem 1rem;
+    border-radius: 999px;
+    border: 1px solid transparent;
+    transition: all 0.15s;
+  }
+  nav.tabs a:hover { color: #fff; border-color: var(--line); }
+  nav.tabs a.active { background: var(--card); color: var(--brand); }
   main {
     max-width: 780px;
     margin: 0 auto;
@@ -213,18 +232,20 @@
   <header>
     <img class="logo" src="../logo.png" alt="Rent.Group">
   </header>
+  <nav class="tabs">
+    <a href="../">Transport</a>
+    <a href="./" class="active">Subrental</a>
+  </nav>
 
   <main>
     <div class="card">
       <h2>Subrental Assistant</h2>
       <p style="font-size:0.9rem;color:var(--muted);margin-top:0">
-        Upload the stock/availability export (.xls/.xlsx) for an order. Every item
-        with <strong>Missing stock &gt; 0</strong> is listed, then downloadable as
-        a ready-to-submit .xlsx for the internal subrental request.
+        Export the contents of 'Items' (Tab 4) in AGP and upload it here.
       </p>
 
       <input type="file" id="stockFile" accept=".xlsx,.xls" hidden>
-      <button class="toggle" id="stockUploadBtn">⬆ Upload stock export</button>
+      <button class="toggle" id="stockUploadBtn">⬆ Upload AGP export file (.xlsx)</button>
       <span id="stockFileName" style="font-size:0.85rem;color:var(--muted);margin-left:0.5rem"></span>
       <div id="stockStatus" class="upstatus"></div>
 
@@ -247,7 +268,7 @@
     </div>
 
     <details class="admin">
-      <summary><span class="plus-icon">+</span> Refresh the item master data</summary>
+      <summary><span class="plus-icon">+</span> Upload an updated Master Product list (Master Datenbestand) here.</summary>
       <div class="card">
         <p style="font-size:0.85rem;color:var(--muted);margin-top:0">
           Upload an updated product list (Master Datenbestand) here:
