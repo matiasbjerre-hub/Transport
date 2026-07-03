@@ -114,6 +114,22 @@
     border-color: var(--accent);
     box-shadow: 0 0 0 3px rgba(200,16,46,0.12);
   }
+  select.row-warehouse {
+    width: 100%;
+    min-width: 11rem;
+    padding: 0.4rem 0.5rem;
+    font-family: inherit;
+    font-size: 0.85rem;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: #fff;
+    color: var(--text);
+  }
+  select.row-warehouse:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(200,16,46,0.12);
+  }
   .upstatus { font-size: 0.85rem; margin-top: 0.6rem; min-height: 1.2em; }
   .upstatus.ok { color: #1a7f37; }
   .upstatus.err { color: var(--accent); }
@@ -189,18 +205,6 @@
 
       <div class="field-row">
         <div class="field">
-          <label for="warehouse">Warehouse</label>
-          <select id="warehouse">
-            <option value="" selected disabled>Select warehouse…</option>
-            <option value="Hamburg (Umschlag)">Hamburg (Umschlag)</option>
-            <option value="Berlin (Umschlag)">Berlin (Umschlag)</option>
-            <option value="Bocholt (Umschlag)">Bocholt (Umschlag)</option>
-            <option value="Hanover (Umschlag)">Hanover (Umschlag)</option>
-            <option value="Frankfurt - Direct">Frankfurt - Direct</option>
-            <option value="Munich - Direct">Munich - Direct</option>
-          </select>
-        </div>
-        <div class="field">
           <label for="orderNo">Order no.</label>
           <input type="text" id="orderNo" placeholder="e.g. 2610293">
         </div>
@@ -222,14 +226,18 @@
       <div id="resultsArea"></div>
 
       <div class="note">
-        Item numbers starting with <strong>19</strong> are local Scandinavian
-        articles — these can only be subrented from our own warehouse, so
-        they're excluded entirely rather than listed. Any other item not found
-        in the master data is flagged in red (description shown as given in the
-        stock export instead). <strong>Rental days</strong> defaults from the
-        subrental period above using the internal subrental scale (not plain
-        calendar days) — e.g. a 2-week period defaults to 3 rental days, 3
-        weeks to 7 — but is editable per row if an item needs a different value.
+        <strong>Order no.</strong> is auto-filled from the uploaded file's name
+        when it contains one (editable if wrong/missing). Item numbers starting
+        with <strong>19</strong> are local Scandinavian articles — these can
+        only be subrented from our own warehouse, so they're excluded entirely
+        rather than listed. Any other item not found in the master data is
+        flagged in red (description shown as given in the stock export
+        instead). <strong>Rental days</strong> defaults from the subrental
+        period above using the internal subrental scale (not plain calendar
+        days) — e.g. a 2-week period defaults to 3 rental days, 3 weeks to 7.
+        <strong>Rental days</strong> and <strong>Warehouse</strong> are per-row
+        info for the colleague booking the subrental — not connected to
+        pricing — and both are editable per row.
       </div>
     </div>
 
@@ -262,6 +270,14 @@
 /* ============================================================
    CONFIGURATION
    ============================================================ */
+/* Warehouse options for the per-row dropdown (one per missing item, since
+   different items may need to come from different warehouses). Not tied to
+   pricing - purely logistics info for the colleague booking the subrental. */
+const WAREHOUSE_OPTIONS = [
+  "Hamburg (Umschlag)", "Berlin (Umschlag)", "Bocholt (Umschlag)",
+  "Hanover (Umschlag)", "Frankfurt - Direct", "Munich - Direct"
+];
+
 /* GitHub target for the auto-push on "update master data". */
 const GH = {
   owner: "matiasbjerre-hub",
@@ -404,6 +420,9 @@ function renderResults(items, excludedLocal) {
     document.getElementById("periodTo").value
   );
 
+  const warehouseOptionsHtml = '<option value="" selected disabled>Select…</option>' +
+    WAREHOUSE_OPTIONS.map(function (w) { return '<option value="' + w + '">' + w + '</option>'; }).join("");
+
   const rowsHtml = rows.map(function (r, i) {
     const rowClass = r.found ? "" : "flag-missing";
     const flagHtml = r.found ? "" : '<span class="flag-note">not in master data</span>';
@@ -414,12 +433,15 @@ function renderResults(items, excludedLocal) {
       '<td class="num">' +
         '<input type="number" class="rental-days" id="rentalDays_' + i + '" min="1" step="1" value="' + defaultDays + '">' +
       "</td>" +
+      "<td>" +
+        '<select class="row-warehouse" id="warehouse_' + i + '">' + warehouseOptionsHtml + "</select>" +
+      "</td>" +
       "</tr>";
   }).join("");
 
   resultsAreaEl.innerHTML =
     '<div class="results-scroll"><table class="results" id="resultsTable">' +
-    "<tr><th>Art.Nr.</th><th>Qty</th><th>Description</th><th>Rental days</th></tr>" +
+    "<tr><th>Art.Nr.</th><th>Qty</th><th>Description</th><th>Rental days</th><th>Warehouse</th></tr>" +
     rowsHtml +
     "</table></div>" +
     (excludedLocal ? '<p class="flag-note" style="margin:0.5rem 0 0">' + excludedLocal +
@@ -432,24 +454,27 @@ function renderResults(items, excludedLocal) {
   document.getElementById("downloadBtn").addEventListener("click", downloadWorkbook);
 }
 
-/* ---- Read {itemNo, qty, desc, rentalDays} for every row, rentalDays live from the DOM ---- */
-function getRowsWithCurrentDays() {
+/* ---- Read {itemNo, qty, desc, rentalDays, warehouse} for every row, both
+   live from the DOM (rentalDays/warehouse are per-row, editable) ---- */
+function getRowsWithCurrentInputs() {
   return currentRows.map(function (r, i) {
-    const el = document.getElementById("rentalDays_" + i);
+    const daysEl = document.getElementById("rentalDays_" + i);
+    const whEl = document.getElementById("warehouse_" + i);
     return {
       itemNo: r.itemNo,
       qty: r.qty,
       desc: r.desc,
-      rentalDays: el && el.value !== "" ? el.value : ""
+      rentalDays: daysEl && daysEl.value !== "" ? daysEl.value : "",
+      warehouse: whEl ? whEl.value : ""
     };
   });
 }
 
 function copyResultsAsText() {
-  const rows = getRowsWithCurrentDays();
-  const lines = ["Art.Nr.\tQty\tDescription\tRental days"];
+  const rows = getRowsWithCurrentInputs();
+  const lines = ["Art.Nr.\tQty\tDescription\tRental days\tWarehouse"];
   rows.forEach(function (r) {
-    lines.push(r.itemNo + "\t" + r.qty + "\t" + r.desc + "\t" + r.rentalDays);
+    lines.push(r.itemNo + "\t" + r.qty + "\t" + r.desc + "\t" + r.rentalDays + "\t" + r.warehouse);
   });
   const text = lines.join("\n");
   navigator.clipboard.writeText(text).then(function () {
@@ -464,13 +489,12 @@ function copyResultsAsText() {
    template can be read and matched exactly (see CLAUDE.md). */
 function downloadWorkbook() {
   const statusEl = document.getElementById("downloadStatus");
-  const warehouse = document.getElementById("warehouse").value;
   const orderNo = document.getElementById("orderNo").value.trim();
   const periodFrom = document.getElementById("periodFrom").value;
   const periodTo = document.getElementById("periodTo").value;
 
-  if (!warehouse || !orderNo || !periodFrom || !periodTo) {
-    statusEl.textContent = "Fill in Warehouse, Order no. and both subrental period dates first.";
+  if (!orderNo || !periodFrom || !periodTo) {
+    statusEl.textContent = "Fill in Order no. and both subrental period dates first.";
     statusEl.className = "upstatus err";
     return;
   }
@@ -480,21 +504,20 @@ function downloadWorkbook() {
     return;
   }
 
-  const rows = getRowsWithCurrentDays();
+  const rows = getRowsWithCurrentInputs();
   const aoa = [
     ["Internal subrental request"],
-    ["Warehouse", warehouse],
     ["Order no.", orderNo],
     ["Subrental period — from", periodFrom, "to", periodTo],
     [],
-    ["Art.Nr.", "Amount", "Description", "Rental days"]
+    ["Art.Nr.", "Amount", "Description", "Rental days", "Warehouse"]
   ];
   rows.forEach(function (r) {
-    aoa.push([r.itemNo, r.qty, r.desc, r.rentalDays]);
+    aoa.push([r.itemNo, r.qty, r.desc, r.rentalDays, r.warehouse]);
   });
 
   const ws = XLSX.utils.aoa_to_sheet(aoa);
-  ws["!cols"] = [{ wch: 12 }, { wch: 10 }, { wch: 55 }, { wch: 12 }];
+  ws["!cols"] = [{ wch: 12 }, { wch: 10 }, { wch: 55 }, { wch: 12 }, { wch: 20 }];
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, "Subrental request");
 
@@ -504,12 +527,24 @@ function downloadWorkbook() {
   statusEl.className = "upstatus ok";
 }
 
+/* ---- Pull the order no. out of a filename, e.g. "Missing items order
+   2610293.xls" -> "2610293". Picks the longest run of digits, since filenames
+   often also contain small incidental numbers (versions, dates truncated,
+   etc.) that aren't the order no. ---- */
+function extractOrderNoFromFilename(name) {
+  const matches = name.match(/\d+/g);
+  if (!matches) return "";
+  return matches.reduce(function (longest, d) { return d.length > longest.length ? d : longest; }, "");
+}
+
 /* ---- Wire the stock-export upload ---- */
 stockUploadBtn.addEventListener("click", function () { stockFileEl.click(); });
 stockFileEl.addEventListener("change", function () {
   const f = stockFileEl.files[0];
   if (!f) return;
   stockFileNameEl.textContent = f.name;
+  const orderNo = extractOrderNoFromFilename(f.name);
+  if (orderNo) document.getElementById("orderNo").value = orderNo;
   setStatus(stockStatusEl, "Reading " + f.name + "…", "busy");
   const reader = new FileReader();
   reader.onload = function () {

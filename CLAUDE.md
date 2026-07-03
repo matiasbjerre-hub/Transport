@@ -32,29 +32,35 @@ pattern as the Transport calculator above.
     entries not already covered by the German data — the other 149 overlap and
     were intentionally left alone to avoid downgrading rows that already have
     richer German-sourced data).
-- **What it does:** fill in **Warehouse** (dropdown: Hamburg/Berlin/Bocholt/
-  Hanover — all "Umschlag" — or Frankfurt/Munich "Direct"), **Order no.**, and
-  the **subrental period** (from/to dates), then upload a stock/availability
-  export (`.xls`/`.xlsx`, same format as the Excel "Subrental" workflow) →
-  every row with `Missing stock > 0` is extracted (columns identified by
-  header name: "Item number", "Description", "Missing stock") → **item numbers
-  starting with `19` are excluded entirely** (local-warehouse-only articles —
-  can never be subrented from elsewhere; this is different from the Master
-  Datenbestand merge above, which is about looking up *description* data for
-  19-prefix items, not about whether they're eligible for subrental at all) →
-  shown as an on-screen preview table with a **per-row editable "Rental days"
-  field** — defaults from the subrental period via the *internal* subrental
-  scale (confirmed by the user 2026-07-03): calendar days → whole weeks
-  (rounded up) → `WEEK_TO_RENTAL_DAYS` lookup (1 week→1, 2→3, 3→7, 4→10, 5→14,
-  6→17, ... up to 12→38; extrapolated beyond 12 weeks). **Not plain calendar
-  days** — client-facing rentals use calendar days, subrental doesn't. Each
-  row can still be overridden individually. → **"Download .xlsx"** produces a file
-  (`Subrental_<order>_<from>_<to>.xlsx`) with Warehouse/Order no./period and the
-  Art.Nr./Amount/Description/Rental days rows (using whatever the user last
-  typed into each Rental days input, read live from the DOM at download time)
-  — meant to contain everything needed to submit the internal subrental
-  request. "Copy as text" (tab-separated, same live values) is also available.
-  No login; the page is fully public.
+- **What it does:** fill in **Order no.** (auto-filled from the uploaded
+  filename's longest digit run if it contains one, e.g. "Missing items order
+  2610293.xls" → "2610293" — still editable/overridable) and the **subrental
+  period** (from/to dates), then upload a stock/availability export
+  (`.xls`/`.xlsx`, same format as the Excel "Subrental" workflow) → every row
+  with `Missing stock > 0` is extracted (columns identified by header name:
+  "Item number", "Description", "Missing stock") → **item numbers starting
+  with `19` are excluded entirely** (local-warehouse-only articles — can never
+  be subrented from elsewhere; this is different from the Master Datenbestand
+  merge above, which is about looking up *description* data for 19-prefix
+  items, not about whether they're eligible for subrental at all) → shown as
+  an on-screen preview table with, **per row**, an editable "Rental days" field
+  and a **"Warehouse" dropdown** (`WAREHOUSE_OPTIONS`: Hamburg/Berlin/Bocholt/
+  Hanover "Umschlag", Frankfurt/Munich "Direct" — per-row because different
+  missing items may need to come from different warehouses, not a single
+  order-level choice). Rental days defaults from the subrental period via the
+  *internal* subrental scale (confirmed by the user 2026-07-03): calendar days
+  → whole weeks (rounded up) → `WEEK_TO_RENTAL_DAYS` lookup (1 week→1, 2→3,
+  3→7, 4→10, 5→14, 6→17, ... up to 12→38; extrapolated beyond 12 weeks). **Not
+  plain calendar days** — client-facing rentals use calendar days, subrental
+  doesn't. Both Rental days and Warehouse are informational for the colleague
+  booking the subrental — **not connected to pricing**, neither is required to
+  download. → **"Download .xlsx"** produces a file
+  (`Subrental_<order>_<from>_<to>.xlsx`) with Order no./period and the
+  Art.Nr./Amount/Description/Rental days/Warehouse rows (reading the live,
+  possibly-edited per-row values from the DOM at download time via
+  `getRowsWithCurrentInputs()`) — meant to contain everything needed to submit
+  the internal subrental request. "Copy as text" (tab-separated, same live
+  values) is also available. No login; the page is fully public.
 - **No Setup Cost / no cost calculation on this page** — removed on 2026-07-03
   per explicit correction: Setup Cost is an RFQ-tool concern only, not part of
   this workflow. `datenbestand.json` still stores the `s` (setup cost EUR)
@@ -80,10 +86,10 @@ pattern as the Transport calculator above.
   been stuck on this user's machine for an extended period (whole folder
   affected, not just this file; survived a full Mac restart). **Follow-up
   needed:** once readable, fetch it into `subrental/` as a static asset, load
-  with `XLSX.read(buf, {cellStyles:true})`, locate the moved Warehouse/Order
-  no./period fields and the A/B/C row range by label/header search (not
-  hardcoded cell refs — they've already moved once), write values into the
-  existing cells (don't touch `.s` style refs), and write out with
+  with `XLSX.read(buf, {cellStyles:true})`, locate the moved Order no./period
+  fields and the A/B/C row range by label/header search (not hardcoded cell
+  refs — they've already moved once), write values into the existing cells
+  (don't touch `.s` style refs), and write out with
   `XLSX.writeFile`. Note SheetJS Community Edition's style-preservation on
   write is not fully reliable for every feature (conditional formatting/data
   validation especially) — verify the actual downloaded file opens looking

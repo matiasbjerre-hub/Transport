@@ -53,10 +53,11 @@ Everything lives at the top of `<script>` in `index.html`:
 
 ## Subrental calculator (`subrental/`)
 
-A second standalone page in this repo: fill in the warehouse, order no. and
-subrental period, upload a stock/availability export, and download a
-ready-to-submit .xlsx with the missing items (Missing stock > 0, excluding
-local-warehouse-only "19"-prefix items) and an editable Rental days per row.
+A second standalone page in this repo: fill in the order no. (auto-filled from
+the uploaded filename if it contains one) and subrental period, upload a
+stock/availability export, and download a ready-to-submit .xlsx with the
+missing items (Missing stock > 0, excluding local-warehouse-only "19"-prefix
+items) and an editable Rental days + Warehouse per row.
 
 **Live:** https://matiasbjerre-hub.github.io/Transport/subrental/
 
