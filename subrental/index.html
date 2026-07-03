@@ -69,6 +69,37 @@
     gap: 0.5rem;
   }
   .toggle:hover { border-color: var(--accent); }
+  .field-row {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-bottom: 1.25rem;
+  }
+  .field-row .field { flex: 1; min-width: 150px; }
+  .field-row label {
+    display: block;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--muted);
+    margin-bottom: 0.35rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+  .field-row input {
+    width: 100%;
+    padding: 0.65rem 0.8rem;
+    font-family: inherit;
+    font-size: 0.95rem;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: #fff;
+    color: var(--text);
+  }
+  .field-row input:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(200,16,46,0.12);
+  }
   .upstatus { font-size: 0.85rem; margin-top: 0.6rem; min-height: 1.2em; }
   .upstatus.ok { color: #1a7f37; }
   .upstatus.err { color: var(--accent); }
@@ -97,7 +128,6 @@
   }
   table.results td.num { text-align: right; font-variant-numeric: tabular-nums; }
   table.results tr.total td { font-weight: 700; border-top: 2px solid var(--brand); border-bottom: none; }
-  table.results tr.flag-local td.flag { color: #b45309; }
   table.results tr.flag-missing td.flag { color: var(--accent); font-weight: 600; }
   .flag-note { font-size: 0.75rem; color: var(--muted); }
   .empty-msg { color: var(--muted); font-size: 0.9rem; padding: 0.5rem 0; }
@@ -139,9 +169,25 @@
       <h2>Missing items &amp; Setup Cost from a stock export</h2>
       <p style="font-size:0.9rem;color:var(--muted);margin-top:0">
         Upload the stock/availability export (.xls/.xlsx) for an order. Every item
-        with <strong>Missing stock &gt; 0</strong> is listed below with its Setup
-        Cost, converted to DKK.
+        with <strong>Missing stock &gt; 0</strong> is listed with its Setup Cost
+        in DKK, then downloadable as a ready-to-submit .xlsx for the internal
+        subrental request.
       </p>
+
+      <div class="field-row">
+        <div class="field">
+          <label for="orderNo">Order no.</label>
+          <input type="text" id="orderNo" placeholder="e.g. 2610293">
+        </div>
+        <div class="field">
+          <label for="periodFrom">Subrental period — from</label>
+          <input type="date" id="periodFrom">
+        </div>
+        <div class="field">
+          <label for="periodTo">Subrental period — to</label>
+          <input type="date" id="periodTo">
+        </div>
+      </div>
 
       <input type="file" id="stockFile" accept=".xlsx,.xls" hidden>
       <button class="toggle" id="stockUploadBtn">⬆ Upload stock export</button>
@@ -154,9 +200,9 @@
         <strong>How this is calculated:</strong> Setup Cost = quantity × Setup
         cost (€, from the master data) × 7.46038 (fixed EUR→DKK peg rate).
         Item numbers starting with <strong>19</strong> are local Scandinavian
-        articles that may legitimately be missing from the master data — those
-        rows show 0 with a note rather than being flagged as an error. Any other
-        item not found in the master data is flagged in red as a genuine data gap.
+        articles — these can only be subrented from our own warehouse, so
+        they're excluded entirely rather than listed. Any other item not found
+        in the master data is flagged in red as a genuine data gap.
       </div>
     </div>
 
@@ -236,7 +282,10 @@ function findCol(headerRow, name) {
   return -1;
 }
 
-/* ---- Parse the uploaded stock export: return [{itemNo, qty, desc}] for Missing stock > 0 ---- */
+/* ---- Parse the uploaded stock export: return {items, excludedLocal} for Missing stock > 0 ----
+   Item numbers starting with "19" are local-warehouse-only articles that can
+   never be subrented from elsewhere, so they're excluded entirely (not just
+   flagged) rather than listed as missing. */
 function parseStockWorkbook(buf) {
   const wb = XLSX.read(buf, { type: "array" });
   const ws = wb.Sheets[wb.SheetNames[0]];
@@ -252,6 +301,7 @@ function parseStockWorkbook(buf) {
   }
 
   const out = [];
+  let excludedLocal = 0;
   for (let r = 1; r < rows.length; r++) {
     const row = rows[r];
     if (!row) continue;
@@ -259,48 +309,58 @@ function parseStockWorkbook(buf) {
     if (typeof missing !== "number" || missing <= 0) continue;
     const itemNo = row[cItem];
     if (itemNo === undefined || itemNo === null || itemNo === "") continue;
+    const itemNoStr = String(itemNo).trim();
+    if (/^19/.test(itemNoStr)) { excludedLocal++; continue; }
     out.push({
-      itemNo: String(itemNo).trim(),
+      itemNo: itemNoStr,
       qty: missing,
       desc: row[cDesc] !== undefined && row[cDesc] !== null ? String(row[cDesc]) : ""
     });
   }
-  return out;
+  return { items: out, excludedLocal: excludedLocal };
 }
 
-/* ---- Render the results table ---- */
-function renderResults(items) {
+/* ---- Compute {itemNo, qty, desc, setupDkk, found} rows + total from parsed items ---- */
+function computeRows(items) {
+  let total = 0;
+  const rows = items.map(function (it) {
+    const entry = DB.items[it.itemNo];
+    const setupDkk = entry ? it.qty * (entry.s || 0) * FX_DKK_PER_EUR : 0;
+    total += setupDkk;
+    return {
+      itemNo: it.itemNo,
+      qty: it.qty,
+      desc: entry && entry.d ? entry.d : it.desc,
+      setupDkk: setupDkk,
+      found: !!entry
+    };
+  });
+  return { rows: rows, total: total };
+}
+
+/* Current parsed result, kept so the Download button can (re)build the
+   workbook any time after Order no./dates are edited, without re-parsing. */
+let currentResult = null;
+
+/* ---- Render the on-screen preview table ---- */
+function renderResults(items, excludedLocal) {
+  const computed = computeRows(items);
+  currentResult = computed;
+
   if (!items.length) {
-    resultsAreaEl.innerHTML = '<div class="empty-msg">No items with Missing stock &gt; 0 found in that file.</div>';
+    resultsAreaEl.innerHTML = '<div class="empty-msg">No items with Missing stock &gt; 0 found in that file' +
+      (excludedLocal ? " (besides " + excludedLocal + " local-only item row(s), excluded)" : "") + ".</div>";
     return;
   }
 
-  let total = 0;
-  const rowsHtml = items.map(function (it) {
-    const entry = DB.items[it.itemNo];
-    const isLocal = /^19/.test(it.itemNo);
-    let setupDkk = 0;
-    let rowClass = "";
-    let flagHtml = "";
-
-    if (entry) {
-      setupDkk = it.qty * (entry.s || 0) * FX_DKK_PER_EUR;
-    } else if (isLocal) {
-      rowClass = "flag-local";
-      flagHtml = '<span class="flag-note">local item, no cost data</span>';
-    } else {
-      rowClass = "flag-missing";
-      flagHtml = '<span class="flag-note">not in master data</span>';
-    }
-    total += setupDkk;
-
-    const desc = entry && entry.d ? entry.d : it.desc;
-
+  const rowsHtml = computed.rows.map(function (r) {
+    const rowClass = r.found ? "" : "flag-missing";
+    const flagHtml = r.found ? "" : '<span class="flag-note">not in master data</span>';
     return '<tr class="' + rowClass + '">' +
-      "<td>" + it.itemNo + "</td>" +
-      '<td class="num">' + it.qty + "</td>" +
-      "<td>" + desc + " " + flagHtml + "</td>" +
-      '<td class="num flag">' + money(setupDkk) + "</td>" +
+      "<td>" + r.itemNo + "</td>" +
+      '<td class="num">' + r.qty + "</td>" +
+      "<td>" + r.desc + " " + flagHtml + "</td>" +
+      '<td class="num flag">' + money(r.setupDkk) + "</td>" +
       "</tr>";
   }).join("");
 
@@ -308,23 +368,24 @@ function renderResults(items) {
     '<div class="results-scroll"><table class="results" id="resultsTable">' +
     "<tr><th>Art.Nr.</th><th>Qty</th><th>Description</th><th>Setup Cost (DKK)</th></tr>" +
     rowsHtml +
-    '<tr class="total"><td colspan="3">Total</td><td class="num">' + money(total) + "</td></tr>" +
+    '<tr class="total"><td colspan="3">Total</td><td class="num">' + money(computed.total) + "</td></tr>" +
     "</table></div>" +
-    '<button class="toggle" id="copyBtn" style="margin-top:1rem">⧉ Copy as text</button>' +
-    '<span id="copyStatus" style="font-size:0.85rem;color:var(--muted);margin-left:0.5rem"></span>';
+    (excludedLocal ? '<p class="flag-note" style="margin:0.5rem 0 0">' + excludedLocal +
+      " local-only item row(s) excluded (can only be subrented from our own warehouse).</p>" : "") +
+    '<button class="toggle" id="downloadBtn" style="margin-top:1rem">⬇ Download .xlsx</button>' +
+    '<button class="toggle" id="copyBtn" style="margin-top:1rem;margin-left:0.5rem">⧉ Copy as text</button>' +
+    '<span id="downloadStatus" style="font-size:0.85rem;color:var(--muted);margin-left:0.5rem"></span>';
 
   document.getElementById("copyBtn").addEventListener("click", function () {
-    copyResultsAsText(items, total);
+    copyResultsAsText(computed.rows, computed.total);
   });
+  document.getElementById("downloadBtn").addEventListener("click", downloadWorkbook);
 }
 
-function copyResultsAsText(items, total) {
+function copyResultsAsText(rows, total) {
   const lines = ["Art.Nr.\tQty\tDescription\tSetup Cost (DKK)"];
-  items.forEach(function (it) {
-    const entry = DB.items[it.itemNo];
-    const setupDkk = entry ? it.qty * (entry.s || 0) * FX_DKK_PER_EUR : 0;
-    const desc = entry && entry.d ? entry.d : it.desc;
-    lines.push(it.itemNo + "\t" + it.qty + "\t" + desc + "\t" + setupDkk.toFixed(2));
+  rows.forEach(function (r) {
+    lines.push(r.itemNo + "\t" + r.qty + "\t" + r.desc + "\t" + r.setupDkk.toFixed(2));
   });
   lines.push("Total\t\t\t" + total.toFixed(2));
   const text = lines.join("\n");
@@ -333,6 +394,49 @@ function copyResultsAsText(items, total) {
   }).catch(function () {
     document.getElementById("copyStatus").textContent = "Could not copy — select and copy the table manually.";
   });
+}
+
+/* ---- Build and trigger download of the subrental request workbook ----
+   Provisional standalone layout until the actual "Skabelon til Claude Code"
+   template can be read and matched exactly (see CLAUDE.md). */
+function downloadWorkbook() {
+  const statusEl = document.getElementById("downloadStatus");
+  const orderNo = document.getElementById("orderNo").value.trim();
+  const periodFrom = document.getElementById("periodFrom").value;
+  const periodTo = document.getElementById("periodTo").value;
+
+  if (!orderNo || !periodFrom || !periodTo) {
+    statusEl.textContent = "Fill in Order no. and both subrental period dates first.";
+    statusEl.className = "upstatus err";
+    return;
+  }
+  if (!currentResult || !currentResult.rows.length) {
+    statusEl.textContent = "Nothing to download yet.";
+    statusEl.className = "upstatus err";
+    return;
+  }
+
+  const aoa = [
+    ["Internal subrental request"],
+    ["Order no.", orderNo],
+    ["Subrental period — from", periodFrom, "to", periodTo],
+    [],
+    ["Art.Nr.", "Amount", "Description", "Setup Cost (DKK)"]
+  ];
+  currentResult.rows.forEach(function (r) {
+    aoa.push([r.itemNo, r.qty, r.desc, Math.round(r.setupDkk * 100) / 100]);
+  });
+  aoa.push(["", "", "Total", Math.round(currentResult.total * 100) / 100]);
+
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws["!cols"] = [{ wch: 12 }, { wch: 10 }, { wch: 55 }, { wch: 16 }];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Subrental request");
+
+  const filename = "Subrental_" + orderNo + "_" + periodFrom + "_" + periodTo + ".xlsx";
+  XLSX.writeFile(wb, filename);
+  statusEl.textContent = "Downloaded " + filename;
+  statusEl.className = "upstatus ok";
 }
 
 /* ---- Wire the stock-export upload ---- */
@@ -345,9 +449,10 @@ stockFileEl.addEventListener("change", function () {
   const reader = new FileReader();
   reader.onload = function () {
     try {
-      const items = parseStockWorkbook(reader.result);
-      setStatus(stockStatusEl, "Found " + items.length + " missing item row(s).", "ok");
-      renderResults(items);
+      const parsed = parseStockWorkbook(reader.result);
+      setStatus(stockStatusEl, "Found " + parsed.items.length + " missing item row(s)" +
+        (parsed.excludedLocal ? " (" + parsed.excludedLocal + " local-only item row(s) excluded)" : "") + ".", "ok");
+      renderResults(parsed.items, parsed.excludedLocal);
     } catch (err) {
       setStatus(stockStatusEl, "Could not read file: " + err.message, "err");
       resultsAreaEl.innerHTML = "";

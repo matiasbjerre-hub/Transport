@@ -32,19 +32,26 @@ pattern as the Transport calculator above.
     entries not already covered by the German data — the other 149 overlap and
     were intentionally left alone to avoid downgrading rows that already have
     richer German-sourced data).
-- **What it does:** upload a stock/availability export (`.xls`/`.xlsx`, same
-  format as the Excel "Subrental" workflow) → every row with `Missing stock > 0`
-  is extracted (columns identified by header name: "Item number", "Description",
-  "Missing stock") → Setup Cost is looked up per item and converted to DKK
-  (`qty × Setup cost € × 7.46038`, the fixed EUR/DKK peg rate) → results shown
-  as an on-screen table with a "Copy as text" button (tab-separated, pastes into
-  Excel/email). No login; the page is fully public.
-- **Item flagging:** item numbers starting with `19` that aren't in
-  `datenbestand.json` are local items expected to be absent — shown with an
-  amber note, Setup Cost 0, not treated as an error. Any other item not found is
-  flagged in red as a genuine data gap. A field value of `0` in the data is
-  always valid and never triggers a flag by itself — only "item not found at
-  all" does.
+- **What it does:** fill in **Order no.** and the **subrental period** (from/to
+  dates), then upload a stock/availability export (`.xls`/`.xlsx`, same format
+  as the Excel "Subrental" workflow) → every row with `Missing stock > 0` is
+  extracted (columns identified by header name: "Item number", "Description",
+  "Missing stock") → **item numbers starting with `19` are excluded entirely**
+  (local-warehouse-only articles — can never be subrented from elsewhere, per
+  explicit correction from the user on 2026-07-03; this is different from the
+  Master Datenbestand merge above, which is about looking up *cost data* for
+  19-prefix items, not about whether they're eligible for subrental at all) →
+  Setup Cost is looked up per remaining item and converted to DKK (`qty × Setup
+  cost € × 7.46038`, the fixed EUR/DKK peg rate) → shown as an on-screen preview
+  table, then **"Download .xlsx"** produces a file (`Subrental_<order>_<from>_<to>.xlsx`)
+  with Order no., period, and the Art.Nr./Amount/Description/Setup Cost rows —
+  meant to contain everything needed to submit the internal subrental request.
+  "Copy as text" (tab-separated) is also still available. No login; the page is
+  fully public.
+- **Item flagging:** any item still not found in `datenbestand.json` (after the
+  19-prefix exclusion above) is flagged in red as a genuine data gap. A field
+  value of `0` in the data is always valid and never triggers a flag by itself
+  — only "item not found at all" does.
 - **Updating the master data:** the collapsed "Update master data" section has
   its own upload button — same auto-commit-via-GitHub-API pattern as the
   Transport price-sheet upload below (own PAT prompt, own `localStorage` key is
@@ -52,10 +59,24 @@ pattern as the Transport calculator above.
   Rebuilds `subrental/datenbestand.json` from an uploaded Master Datenbestand
   `.xlsx` (columns identified by header name: "Item number", "Description",
   "Setup cost €").
-- **Not ported (yet):** Price/Discount/Total (D/E/F), Weight/Volume (K/L), and
-  the rental-days factor (H/J) from the Excel template — this page only
-  replicates the Setup Cost (M) column and the missing-items extraction. Ask
-  before assuming these should be added; they weren't part of the original
+- **Download layout is currently provisional/standalone** (plain
+  `aoa_to_sheet` — no template formatting), built with `XLSX.utils` because the
+  user's actual updated "Skabelon til Claude Code.xlsx" (moved fields, deleted
+  K/L formulas) couldn't be read yet — OneDrive wouldn't sync the file down
+  (whole folder was stuck, not just this one file). **Follow-up needed:** once
+  readable, fetch it into `subrental/` as a static asset, load with
+  `XLSX.read(buf, {cellStyles:true})`, locate the moved Order no./period fields
+  and the A/B/C/M row range by label/header search (not hardcoded cell refs —
+  they've already moved once), write values into the existing cells (don't
+  touch `.s` style refs), and write out with `XLSX.writeFile`. Note SheetJS
+  Community Edition's style-preservation on write is not fully reliable for
+  every feature (conditional formatting/data validation especially) — verify
+  the actual downloaded file opens looking right before calling it done.
+- **Not ported (yet):** Price/Discount/Total (D/E/F) and the rental-days factor
+  (H/J) from the Excel template — this page replicates the Setup Cost (M)
+  column and the missing-items extraction only. K/L (Weight/Volume) were
+  removed from the Excel template itself on 2026-07-03, so they're moot. Ask
+  before assuming Price/Total should be added; it wasn't part of the original
   scope.
 
 ## The three projects
