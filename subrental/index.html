@@ -170,17 +170,6 @@
     border-radius: 10px;
     border-left: 3px solid var(--accent);
   }
-  .admin {
-    margin-top: 2rem;
-    padding-top: 1.25rem;
-    border-top: 1px dashed var(--line);
-  }
-  .admin summary {
-    cursor: pointer;
-    font-size: 0.85rem;
-    font-weight: 600;
-    color: var(--muted);
-  }
   footer {
     text-align: center;
     font-size: 0.75rem;
@@ -241,25 +230,22 @@
       </div>
     </div>
 
-    <details class="admin">
-      <summary>Update master data</summary>
-      <div class="card" style="margin-top:1rem">
-        <h2>Refresh the item master data</h2>
-        <p style="font-size:0.85rem;color:var(--muted);margin-top:0">
-          Upload a new "Master Datenbestand" file (.xlsx, columns: Item number,
-          Article category, Article group, Description (DE), Description,
-          Description 2, Rental price €, Cleaning cost €, Setup cost €,
-          Replacement value €, Weight (g), Volume (m3), Ironing cost €,
-          Unit/package — only "Item number" and "Description" are actually used
-          here; Setup cost is for the RFQ tool, not this one). This rebuilds
-          <code>datenbestand.json</code> and pushes it to GitHub — the live page
-          updates automatically in about a minute.
-        </p>
-        <input type="file" id="masterFile" accept=".xlsx,.xls" hidden>
-        <button class="toggle" id="masterUploadBtn">⬆ Update master data</button>
-        <div id="masterStatus" class="upstatus"></div>
-      </div>
-    </details>
+    <div class="card">
+      <h2>Refresh the item master data</h2>
+      <p style="font-size:0.85rem;color:var(--muted);margin-top:0">
+        Upload a new "Master Datenbestand" file (.xlsx, columns: Item number,
+        Article category, Article group, Description (DE), Description,
+        Description 2, Rental price €, Cleaning cost €, Setup cost €,
+        Replacement value €, Weight (g), Volume (m3), Ironing cost €,
+        Unit/package — only "Item number" and "Description" are actually used
+        here; Setup cost is for the RFQ tool, not this one). This rebuilds
+        <code>datenbestand.json</code> and pushes it to GitHub — the live page
+        updates automatically in about a minute.
+      </p>
+      <input type="file" id="masterFile" accept=".xlsx,.xls" hidden>
+      <button class="toggle" id="masterUploadBtn">⬆ Update master data</button>
+      <div id="masterStatus" class="upstatus"></div>
+    </div>
   </main>
 
   <footer>
