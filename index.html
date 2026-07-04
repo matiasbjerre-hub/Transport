@@ -306,7 +306,7 @@
       </div>
 
       <div class="field">
-        <button class="toggle" id="twoways" aria-pressed="false">
+        <button class="toggle active" id="twoways" aria-pressed="true">
           <span class="dot"></span> 2-ways (return trip)
         </button>
       </div>
@@ -485,7 +485,7 @@ const GH = {
 const NAME_TO_ID = {};
 CITIES.forEach(function (c) { NAME_TO_ID[c.name] = c.id; });
 
-let twoWays = false;
+let twoWays = true; // round trip is the default
 
 function fillSelect(sel) {
   CITIES.forEach(function (c) {
@@ -727,11 +727,12 @@ addBtn.addEventListener("click", function () {
 
 /* ---- Multiple legs from the Subrental Assistant in one link, e.g.
    ?legs=HAM:5,BOC:1&to=CPH - one leg per warehouse, all going to the same
-   destination. Adds every leg straight to the transport list (one-way; a
-   subrental delivery isn't a round trip) so the user lands here with the
-   whole shipment already added up, instead of opening a tab per warehouse.
-   Unknown cities or missing pallet counts are skipped rather than breaking
-   the page. Also mirrors the last leg into the live single-route fields. ---- */
+   destination. Adds every leg straight to the transport list (round trip by
+   default, same as the single-route calculator - see `twoWays` above) so the
+   user lands here with the whole shipment already added up, instead of
+   opening a tab per warehouse. Unknown cities or missing pallet counts are
+   skipped rather than breaking the page. Also mirrors the last leg into the
+   live single-route fields. ---- */
 (function applyLegsParam() {
   const params = new URLSearchParams(window.location.search);
   const qLegs = params.get("legs");
@@ -747,7 +748,7 @@ addBtn.addEventListener("click", function () {
     const city = bits[0];
     const pallets = parseInt(bits[1], 10);
     if (knownIds.indexOf(city) === -1 || city === to || !pallets || pallets < 1) return;
-    const r = computeLeg(city, to, pallets, false);
+    const r = computeLeg(city, to, pallets, twoWays);
     if (!r.ok) return;
     cart.push(r);
     lastCity = city;
