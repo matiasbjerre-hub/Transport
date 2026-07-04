@@ -219,12 +219,39 @@
   .note {
     font-size: 0.8rem;
     color: var(--muted);
-    margin-top: 1rem;
     padding: 0.9rem;
     background: #fafaf9;
     border-radius: 10px;
     border-left: 3px solid var(--accent);
   }
+  details.note-toggle { margin-top: 1rem; }
+  details.note-toggle summary {
+    cursor: pointer;
+    list-style: none;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--muted);
+  }
+  details.note-toggle summary::-webkit-details-marker { display: none; }
+  details.note-toggle summary .plus-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.2rem;
+    height: 1.2rem;
+    border-radius: 50%;
+    border: 1px solid var(--line);
+    color: var(--muted);
+    font-size: 0.9rem;
+    line-height: 1;
+    flex: 0 0 auto;
+    transition: transform 0.15s;
+  }
+  details.note-toggle[open] summary .plus-icon { transform: rotate(45deg); }
+  details.note-toggle .note { margin-top: 0.6rem; }
   footer {
     text-align: center;
     font-size: 0.75rem;
@@ -296,16 +323,19 @@
       <button class="toggle" id="uploadBtn" style="margin-top:0.75rem;">⬆ Update price list</button>
       <div id="upstatus" class="upstatus"></div>
 
-      <div class="note">
-        <strong>Note:</strong> Prices are per transport from the DDSJ 2026
-        international price list, shown in EUR and converted to DKK/SEK using the
-        fixed rates in <code>FX</code> (top of the script). Vehicle is chosen
-        automatically from the number of pallets (Van ≤4, Curtain van ≤8,
-        Truck 18p for 9–18, Full trailer 33). Loads above 33 pallets are split across
-        several vehicles. When m³ is entered, pallets are derived as m³ ÷ 2
-        (rounded up). Routes via Malmö are intentionally excluded. ★ marks the
-        Copenhagen Umschlag cities.
-      </div>
+      <details class="note-toggle">
+        <summary><span class="plus-icon">+</span> Note</summary>
+        <div class="note">
+          <strong>Note:</strong> Prices are per transport from the DDSJ 2026
+          international price list, shown in EUR and converted to DKK/SEK using the
+          fixed rates in <code>FX</code> (top of the script). Vehicle is chosen
+          automatically from the number of pallets (Van ≤4, Curtain van ≤8,
+          Truck 18p for 9–18, Full trailer 33). Loads above 33 pallets are split across
+          several vehicles. When m³ is entered, pallets are derived as m³ ÷ 2
+          (rounded up). Routes via Malmö are intentionally excluded. ★ marks the
+          Copenhagen Umschlag cities.
+        </div>
+      </details>
     </div>
 
     <div class="card" id="cartCard" style="display:none;">
