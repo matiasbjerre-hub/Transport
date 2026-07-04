@@ -514,7 +514,11 @@ function refreshTransportLinks() {
   });
 
   const warehouses = Object.keys(groups);
-  if (!warehouses.length) { container.innerHTML = ""; return; }
+  if (!warehouses.length) {
+    container.innerHTML = '<p class="flag-note" style="margin:0.5rem 0 0">' +
+      "Pick a Warehouse above for at least one row to send it to Transport.</p>";
+    return;
+  }
 
   const linksHtml = warehouses.map(function (wh) {
     const city = WAREHOUSE_TO_TRANSPORT_CITY[wh];
