@@ -293,7 +293,7 @@
       <button class="toggle" id="addBtn" style="margin-top:0.75rem;">&#43; Add this transport to the list</button>
 
       <input type="file" id="file" accept=".xlsx,.xls" hidden>
-      <button class="toggle" id="uploadBtn" style="margin-top:0.75rem;">⬆ Advanced settings</button>
+      <button class="toggle" id="uploadBtn" style="margin-top:0.75rem;">⬆ Update price list</button>
       <div id="upstatus" class="upstatus"></div>
 
       <div class="note">
@@ -526,12 +526,6 @@ function legFor(rates, n) {
   return { price: price, vehicles: veh };
 }
 
-function mergeVehicles(a, b) {
-  const out = Object.assign({}, a);
-  Object.keys(b).forEach(function (k) { out[k] = (out[k] || 0) + b[k]; });
-  return out;
-}
-
 function vehiclesText(veh) {
   return Object.keys(veh).map(function (k) {
     return veh[k] + " × " + k;
@@ -568,19 +562,14 @@ function showEmpty(msg, route) {
   vehiclesEl.innerHTML = "";
 }
 
-/* Compute the price + vehicle breakdown for the current inputs.
+/* Compute the price + vehicle breakdown for an explicit from/to/pallets/twoWays.
    Returns { ok:true, ... } on success, or { ok:false, msg, route } otherwise.
-   Used by both the live result and the transport list. */
-function computeTransport() {
-  syncPalletsFromVolume();
-
-  const from = fromSel.value;
-  const to = toSel.value;
+   Doesn't touch the DOM, so it can also be used to build transport-list
+   entries (e.g. from a "legs=" URL param) without disturbing the visible form. */
+function computeLeg(from, to, pallets, twoWaysFlag) {
   const route = nameOf(from) + " &rarr; " + nameOf(to);
 
   if (from === to) { return { ok: false, msg: "Select two different cities" }; }
-
-  const pallets = parseInt(palletsEl.value, 10);
   if (!pallets || pallets < 1) { return { ok: false, msg: "Enter the number of pallets", route: route }; }
   if (pallets > MAX_PALLETS) { return { ok: false, msg: "Max. " + MAX_PALLETS + " pallets", route: route }; }
 
@@ -589,7 +578,7 @@ function computeTransport() {
 
   const out = legFor(outRates, pallets);
 
-  if (!twoWays) {
+  if (!twoWaysFlag) {
     return {
       ok: true, from: from, to: to, pallets: pallets, twoWays: false,
       priceEur: out.price, vehicles: out.vehicles
@@ -601,11 +590,24 @@ function computeTransport() {
     return { ok: false, msg: "Return price (" + nameOf(to) + " → " + nameOf(from) + ") not available", route: route };
   }
   const ret = legFor(retRates, pallets);
+  /* Same pallet count both ways -> same vehicle(s) needed both ways. It's
+     the same physical truck doing the round trip, not two separate ones,
+     so don't sum vehicle counts across legs (that used to double them). */
   return {
     ok: true, from: from, to: to, pallets: pallets, twoWays: true,
-    priceEur: out.price + ret.price, vehicles: mergeVehicles(out.vehicles, ret.vehicles),
+    priceEur: out.price + ret.price, vehicles: out.vehicles,
     outPrice: out.price, retPrice: ret.price
   };
+}
+
+/* Compute the price + vehicle breakdown for the current inputs.
+   Used by both the live result and the transport list's "Add to list" button. */
+function computeTransport() {
+  syncPalletsFromVolume();
+  const from = fromSel.value;
+  const to = toSel.value;
+  const pallets = parseInt(palletsEl.value, 10);
+  return computeLeg(from, to, pallets, twoWays);
 }
 
 function calculate() {
@@ -692,6 +694,46 @@ addBtn.addEventListener("click", function () {
   cart.push(r);
   renderCart();
 });
+
+/* ---- Multiple legs from the Subrental Assistant in one link, e.g.
+   ?legs=HAM:5,BOC:1&to=CPH - one leg per warehouse, all going to the same
+   destination. Adds every leg straight to the transport list (one-way; a
+   subrental delivery isn't a round trip) so the user lands here with the
+   whole shipment already added up, instead of opening a tab per warehouse.
+   Unknown cities or missing pallet counts are skipped rather than breaking
+   the page. Also mirrors the last leg into the live single-route fields. ---- */
+(function applyLegsParam() {
+  const params = new URLSearchParams(window.location.search);
+  const qLegs = params.get("legs");
+  if (!qLegs) return;
+  const knownIds = CITIES.map(function (c) { return c.id; });
+  const qTo = params.get("to");
+  const to = qTo && knownIds.indexOf(qTo) !== -1 ? qTo : "CPH";
+
+  let lastCity = null;
+  let lastPallets = null;
+  qLegs.split(",").forEach(function (leg) {
+    const bits = leg.split(":");
+    const city = bits[0];
+    const pallets = parseInt(bits[1], 10);
+    if (knownIds.indexOf(city) === -1 || city === to || !pallets || pallets < 1) return;
+    const r = computeLeg(city, to, pallets, false);
+    if (!r.ok) return;
+    cart.push(r);
+    lastCity = city;
+    lastPallets = pallets;
+  });
+
+  if (cart.length > 0) {
+    renderCart();
+    if (lastCity) {
+      fromSel.value = lastCity;
+      toSel.value = to;
+      palletsEl.value = lastPallets;
+      calculate();
+    }
+  }
+})();
 
 cartList.addEventListener("click", function (e) {
   const btn = e.target.closest(".rm");

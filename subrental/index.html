@@ -493,12 +493,15 @@ function renderResults(items, excludedLocal) {
   refreshTransportLinks();
 }
 
-/* ---- "Send to Transport" links, one per warehouse currently assigned to at
-   least one row. Opens the Transport calculator (new tab, so Subrental work
-   isn't lost) pre-filled with that warehouse as origin, Copenhagen as
-   destination, and a pallet count derived from Weight/Volume in
-   datenbestand.json (loaded but never shown in this table - only used here).
-   Recomputed on every Art.Nr./Qty/Warehouse edit so it never goes stale. ---- */
+/* ---- Single "Send to Transport" link covering every warehouse currently
+   assigned to at least one row. Opens the Transport calculator (new tab, so
+   Subrental work isn't lost) with one leg per warehouse encoded in a single
+   "legs=CITY:PALLETS,CITY:PALLETS,..." param (destination Copenhagen for all
+   legs), so Transport can add them all to its multi-transport list at once
+   instead of the user opening one tab per warehouse. Pallet counts are
+   derived from Weight/Volume in datenbestand.json (loaded but never shown in
+   this table - only used here). Recomputed on every Art.Nr./Qty/Warehouse
+   edit so it never goes stale. ---- */
 function refreshTransportLinks() {
   const container = document.getElementById("transportLinks");
   if (!container) return;
@@ -520,19 +523,30 @@ function refreshTransportLinks() {
     return;
   }
 
-  const linksHtml = warehouses.map(function (wh) {
+  const legs = warehouses.map(function (wh) {
     const city = WAREHOUSE_TO_TRANSPORT_CITY[wh];
-    if (!city) return "";
+    if (!city) return null;
     const g = groups[wh];
     const pallets = g.volume > 0 ? Math.ceil(g.volume / 2) : 0; /* M3_PER_PALLET = 2, same as Transport */
-    const url = "../?from=" + city + "&to=CPH" + (pallets > 0 ? "&pallets=" + pallets : "");
-    const shortName = wh.replace(" (Umschlag)", "").replace(" - Direct", "");
-    const label = g.count === 1 ? "1 item" : g.count + " items";
-    return '<a class="toggle" href="' + url + '" target="_blank" ' +
-      'style="font-size:0.85rem;margin:0.3rem 0.4rem 0 0">→ Transport: ' + shortName + " (" + label + ")</a>";
-  }).join("");
+    return { city: city, pallets: pallets, count: g.count, wh: wh };
+  }).filter(Boolean);
 
-  container.innerHTML = (linksHtml ? '<div style="font-size:0.75rem;color:var(--muted);margin-bottom:0.4rem">Send to Transport:</div>' : "") + linksHtml;
+  if (!legs.length) {
+    container.innerHTML = "";
+    return;
+  }
+
+  const legsParam = legs.map(function (l) { return l.city + ":" + l.pallets; }).join(",");
+  const url = "../?legs=" + encodeURIComponent(legsParam) + "&to=CPH";
+  const totalItems = legs.reduce(function (sum, l) { return sum + l.count; }, 0);
+  const summary = legs.map(function (l) {
+    return l.wh.replace(" (Umschlag)", "").replace(" - Direct", "") + " (" + l.count + ")";
+  }).join(", ");
+
+  container.innerHTML =
+    '<div style="font-size:0.75rem;color:var(--muted);margin-bottom:0.4rem">Send to Transport:</div>' +
+    '<a class="toggle" href="' + url + '" target="_blank" style="font-size:0.85rem">' +
+    "→ Transport: all " + totalItems + " items (" + summary + ")</a>";
 }
 
 /* ---- Description cell markup for a given (desc, found) pair ---- */

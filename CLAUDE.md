@@ -160,18 +160,17 @@ pattern as the Transport calculator above.
   user told me; if AGP's export format ever changes, the column-header-based
   parsing (`Item number`/`Description`/`Missing stock`) is what actually needs
   to keep matching, not the button text.
-- **"Advanced settings" (2026-07-03):** the collapsed summary here (and the
-  Transport calculator's `#uploadBtn`, "Update prices (upload sheet)" before)
-  were both renamed to the plain label **"Advanced settings"**, styled smaller
-  and grey (`font-size: 0.8rem`, `color: var(--muted)`) — this superseded and
-  resolved the earlier redundancy where the summary and the paragraph inside
-  it said almost the same thing. In Transport, the override is scoped to
-  `#uploadBtn` specifically (`#uploadBtn { font-size: 0.8rem; color:
-  var(--muted); }`) rather than touching the shared `.toggle` class, since
-  that class is reused by every button on the page (Calculate, 2-ways, Add to
-  list) and must stay at normal size/weight. If Transport ever gets more than
-  one "advanced" action, this same small-grey treatment is the established
-  pattern to reuse, scoped per-button the same way.
+- **"Advanced settings" (2026-07-03):** the collapsed summary here was named
+  **"Advanced settings"**, styled smaller and grey (`font-size: 0.8rem`,
+  `color: var(--muted)`). The Transport calculator's `#uploadBtn` was also
+  temporarily named "Advanced settings" the same day, but was **renamed again
+  to "Update price list" on 2026-07-04** (per explicit user request). The
+  Subrental summary text stays "Advanced settings"; only Transport's button
+  changed. In Transport, the override is scoped to `#uploadBtn` specifically
+  (`#uploadBtn { font-size: 0.8rem; color: var(--muted); }`) rather than
+  touching the shared `.toggle` class, since that class is reused by every
+  button on the page (Calculate, 2-ways, Add to list) and must stay at normal
+  size/weight.
 
 ## Tab navigation between Transport and Subrental
 
@@ -202,22 +201,29 @@ Lets a colleague jump from a Subrental Assistant result straight into the
 Transport calculator with the right route (and, since the user asked for it,
 pallet count) pre-filled, without losing their place in Subrental.
 
-- **Mechanism: plain URL query params, read on load.** Transport's `index.html`
-  has an `applyQueryParams()` IIFE (right after the `CITIES`/select setup, before
-  the final `calculate()` call) that reads `?from=`, `?to=`, `?pallets=` via
-  `URLSearchParams` and overrides the defaults — `from`/`to` are ignored unless
-  they match a known city id, `pallets` unless it's a positive integer. This is
-  intentionally the simplest possible handoff (no `postMessage`, no shared
-  state) — a link is all it is.
-- **Subrental side:** `WAREHOUSE_TO_TRANSPORT_CITY` maps each `WAREHOUSE_OPTIONS`
-  value to a Transport city id. `refreshTransportLinks()` groups the current
-  rows by assigned Warehouse (skipping rows with no warehouse picked), and for
-  each group with a valid city mapping renders a `→ Transport: <city> (N items)`
-  link/pill (`target="_blank"` — opens a new tab on purpose, so the Subrental
-  page and its in-progress edits are never lost) pointing at
-  `../?from=<CITY>&to=CPH&pallets=<N>`. Recomputed on every Art.Nr./Qty/Warehouse
-  edit (wired via `input`/`change` listeners in `renderResults()`), so it can't
-  go stale the way a one-time calculation would.
+- **Mechanism: URL query params, read on load.** Transport reads two handoff
+  formats via IIFE blocks right after the `CITIES`/select setup:
+  - **Single route** (`applyQueryParams`): `?from=HAM&to=CPH&pallets=3` — sets
+    the origin/destination/pallet fields. Still used for any direct link outside
+    of Subrental.
+  - **Multi-leg** (`applyLegsParam`, added 2026-07-04): `?legs=HAM:5,BOC:1,FFM:3&to=CPH`
+    — one leg per warehouse group, all going to the same destination (`CPH` by
+    default). Each `CITY:PALLETS` pair is parsed, computed via the internal
+    `computeLeg()` helper, and pushed straight into Transport's existing cart
+    (`cart.push(r)` + `renderCart()`), so the user arrives with all legs already
+    added and a combined total visible. The last valid leg is also mirrored into
+    the live single-route form. Unknown cities and zero/invalid pallets are
+    silently skipped. `computeLeg()` was split out from `computeTransport()` for
+    exactly this: it takes explicit `(from, to, pallets, twoWaysFlag)` args and
+    does not touch the DOM, so it's safe to call in bulk without disturbing the
+    visible form.
+- **Subrental side (updated 2026-07-04):** `refreshTransportLinks()` used to
+  generate **one link per warehouse group**. It now generates a **single combined
+  link** covering all warehouses at once (`legs=CITY:PALLETS,...&to=CPH`), since
+  the user explicitly asked for all products to open in one Transport tab where
+  multiple transports can be added. The link label shows the combined item count
+  and a per-city breakdown, e.g. "→ Transport: all 5 items (Hamburg (3), Bocholt
+  (2))". Still `target="_blank"`. Recomputed on every Art.Nr./Qty/Warehouse edit.
 - **Pallets are computed from Weight/Volume, which is back in `datenbestand.json`
   but deliberately not shown anywhere in the UI** — the user explicitly asked
   for auto-calculated pallets while keeping the underlying data hidden, only
@@ -301,7 +307,12 @@ irrelevant to that. **The transport price is integrated into RFQ Analyser.**
   Full trailer (33). Loads >33 split into full trailers + smallest vehicle for
   the remainder; prices summed.
 - **m³:** if given, pallets = `ceil(m³ / 2)` (one pallet place = 2 m³).
-- **2-ways:** adds the return leg (`TO-FROM`) and shows a combined total.
+- **2-ways:** adds the return leg (`TO-FROM`) and shows a combined total. The
+  vehicle count is **not** doubled for round trips (fixed 2026-07-04 — previous
+  code used `mergeVehicles(out.vehicles, ret.vehicles)` which summed both legs,
+  always doubling since both legs need the same pallet count / same vehicle. The
+  fix uses `out.vehicles` directly. `mergeVehicles` was removed entirely since it
+  had no other callers). The price still sums both legs correctly.
 - **Currency:** display in EUR/DKK/SEK via `fx`; **DKK is the default**.
 - **Defaults:** origin Hamburg, destination Copenhagen.
 
