@@ -25,7 +25,9 @@ pattern as the Transport calculator above.
 - **Files:**
   - `subrental/index.html` — the whole app (HTML + CSS + JS in one file).
   - `subrental/datenbestand.json` — item master data, **single source of
-    truth**: `{ items: { "<Art.Nr.>": { d: description, s: setupCostEUR } } }`.
+    truth**: `{ items: { "<Art.Nr.>": { d: description, s: setupCostEUR, w:
+    weightKg, v: volumeM3 } } }` (`w`/`v` re-added 2026-07-04 for the "Send to
+    Transport" pallet calc — see that section below; not shown in the UI).
     Currently ~14,931 items — the original German "Master Datenbestand" plus 14
     local Scandinavian items (art. numbers starting `19`) copied in from the RFQ
     repo's `Varekatalog.js` `UI_PRODUCT_DATA` table (the only 14 of its 163
@@ -193,6 +195,67 @@ and would need factoring first).
   `index.html` and `subrental/index.html` or they'll drift.
 - Switching tabs does a real page navigation (full reload) — this was an
   accepted tradeoff, not an oversight.
+
+## "Send to Transport" — Subrental → Transport handoff (2026-07-04)
+
+Lets a colleague jump from a Subrental Assistant result straight into the
+Transport calculator with the right route (and, since the user asked for it,
+pallet count) pre-filled, without losing their place in Subrental.
+
+- **Mechanism: plain URL query params, read on load.** Transport's `index.html`
+  has an `applyQueryParams()` IIFE (right after the `CITIES`/select setup, before
+  the final `calculate()` call) that reads `?from=`, `?to=`, `?pallets=` via
+  `URLSearchParams` and overrides the defaults — `from`/`to` are ignored unless
+  they match a known city id, `pallets` unless it's a positive integer. This is
+  intentionally the simplest possible handoff (no `postMessage`, no shared
+  state) — a link is all it is.
+- **Subrental side:** `WAREHOUSE_TO_TRANSPORT_CITY` maps each `WAREHOUSE_OPTIONS`
+  value to a Transport city id. `refreshTransportLinks()` groups the current
+  rows by assigned Warehouse (skipping rows with no warehouse picked), and for
+  each group with a valid city mapping renders a `→ Transport: <city> (N items)`
+  link/pill (`target="_blank"` — opens a new tab on purpose, so the Subrental
+  page and its in-progress edits are never lost) pointing at
+  `../?from=<CITY>&to=CPH&pallets=<N>`. Recomputed on every Art.Nr./Qty/Warehouse
+  edit (wired via `input`/`change` listeners in `renderResults()`), so it can't
+  go stale the way a one-time calculation would.
+- **Pallets are computed from Weight/Volume, which is back in `datenbestand.json`
+  but deliberately not shown anywhere in the UI** — the user explicitly asked
+  for auto-calculated pallets while keeping the underlying data hidden, only
+  used internally for this feature. `datenbestand.json` items are now
+  `{d, s, w, v}` (`w` = weight in **kg**, `v` = volume in **m³** — Setup Cost
+  `s` from before is unaffected). Per warehouse group: `volume = Σ(qty × v)`
+  across its rows, `pallets = ceil(volume / 2)` (same `M3_PER_PALLET = 2` as
+  Transport). If total volume comes out to 0 (item not found, or genuinely
+  zero volume on every row in the group), `pallets` is omitted from the URL
+  entirely rather than passing `pallets=0` — Transport then just uses its own
+  default (1).
+- **Munich was added to Transport specifically for this** (it wasn't a
+  Transport city before) — `WAREHOUSE_OPTIONS` in Subrental already had
+  "Munich - Direct" with nothing to send it to. Per explicit user decision:
+  Munich (`MUC`) mirrors Frankfurt's (`FFM`) price list exactly (no real DDSJ
+  data for Munich exists) — all 4 Frankfurt routes (`CPH-FFM`, `FFM-CPH`,
+  `FFM-STO`, `STO-FFM`) have an identical `MUC` counterpart. **Two places had
+  to be updated, not one:** `RATES_EUR` in `index.html` (the fallback, used
+  before `rates.json` loads or if it fails) **and** `rates.json` itself, since
+  `rates.json` — once fetched — fully replaces the `RATES` in-memory object
+  (see "Upload feature" above). Forgetting `rates.json` here silently breaks
+  Munich in production even though the code and fallback both look correct —
+  this exact mistake was made and caught during testing before deploying.
+  If Munich ever gets real price data, replace both copies, not just one.
+- **Data source correction (2026-07-04):** this feature required rebuilding
+  `datenbestand.json` from the real Master Datenbestand, and the file
+  previously used for that (a `~/Downloads` copy from 2026-07-02) turned out
+  to be stale — the user pointed to the actual current file in OneDrive
+  instead. Re-verify against OneDrive if `datenbestand.json` needs rebuilding
+  again; don't assume a local cached copy is current.
+- **OneDrive access was blocked across this entire session** (the same issue
+  noted elsewhere in this file) until the user changed a "Full Disk Access"
+  (Danish: "Fuld adgang") permission in macOS System Settings for the relevant
+  app — worth suggesting early if this recurs, rather than just retrying reads.
+  Oddly, a `timeout N cat <file>` via the Bash tool still reported failure
+  afterward while a plain Python `open(...).read()` succeeded instantly on the
+  same path — if OneDrive access seems stuck, try a direct Python read before
+  concluding it's still broken.
 
 ## The three projects
 

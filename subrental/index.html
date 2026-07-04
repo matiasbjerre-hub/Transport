@@ -297,6 +297,20 @@ const WAREHOUSE_OPTIONS = [
   "Hanover (Umschlag)", "Frankfurt - Direct", "Munich - Direct"
 ];
 
+/* Maps each Warehouse option to its Transport-calculator city id, for the
+   "Send to Transport" links below. Keep in sync with Transport's own
+   CITIES list (../index.html) - Munich (MUC) was added there specifically
+   to cover this, mirroring Frankfurt's price list (no real Munich DDSJ
+   data exists yet). */
+const WAREHOUSE_TO_TRANSPORT_CITY = {
+  "Hamburg (Umschlag)": "HAM",
+  "Berlin (Umschlag)": "BER",
+  "Bocholt (Umschlag)": "BOC",
+  "Hanover (Umschlag)": "HAN",
+  "Frankfurt - Direct": "FFM",
+  "Munich - Direct": "MUC"
+};
+
 /* GitHub target for the auto-push on "update master data". */
 const GH = {
   owner: "matiasbjerre-hub",
@@ -466,13 +480,55 @@ function renderResults(items, excludedLocal) {
       " local-only item row(s) excluded (can only be subrented from our own warehouse).</p>" : "") +
     '<button class="toggle" id="downloadBtn" style="margin-top:1rem">⬇ Download .xlsx</button>' +
     '<button class="toggle" id="copyBtn" style="margin-top:1rem;margin-left:0.5rem">⧉ Copy as text</button>' +
-    '<span id="downloadStatus" style="font-size:0.85rem;color:var(--muted);margin-left:0.5rem"></span>';
+    '<span id="downloadStatus" style="font-size:0.85rem;color:var(--muted);margin-left:0.5rem"></span>' +
+    '<div id="transportLinks" style="margin-top:0.75rem"></div>';
 
   document.getElementById("copyBtn").addEventListener("click", copyResultsAsText);
   document.getElementById("downloadBtn").addEventListener("click", downloadWorkbook);
   rows.forEach(function (r, i) {
-    document.getElementById("itemNo_" + i).addEventListener("input", function () { refreshRowDescription(i); });
+    document.getElementById("itemNo_" + i).addEventListener("input", function () { refreshRowDescription(i); refreshTransportLinks(); });
+    document.getElementById("qty_" + i).addEventListener("input", refreshTransportLinks);
+    document.getElementById("warehouse_" + i).addEventListener("change", refreshTransportLinks);
   });
+  refreshTransportLinks();
+}
+
+/* ---- "Send to Transport" links, one per warehouse currently assigned to at
+   least one row. Opens the Transport calculator (new tab, so Subrental work
+   isn't lost) pre-filled with that warehouse as origin, Copenhagen as
+   destination, and a pallet count derived from Weight/Volume in
+   datenbestand.json (loaded but never shown in this table - only used here).
+   Recomputed on every Art.Nr./Qty/Warehouse edit so it never goes stale. ---- */
+function refreshTransportLinks() {
+  const container = document.getElementById("transportLinks");
+  if (!container) return;
+  const rows = getRowsWithCurrentInputs();
+  const groups = {}; /* warehouse -> { count, volume } */
+  rows.forEach(function (r) {
+    if (!r.warehouse) return;
+    const entry = DB.items[r.itemNo];
+    const volume = entry && entry.v ? entry.v * r.qty : 0;
+    if (!groups[r.warehouse]) groups[r.warehouse] = { count: 0, volume: 0 };
+    groups[r.warehouse].count += 1;
+    groups[r.warehouse].volume += volume;
+  });
+
+  const warehouses = Object.keys(groups);
+  if (!warehouses.length) { container.innerHTML = ""; return; }
+
+  const linksHtml = warehouses.map(function (wh) {
+    const city = WAREHOUSE_TO_TRANSPORT_CITY[wh];
+    if (!city) return "";
+    const g = groups[wh];
+    const pallets = g.volume > 0 ? Math.ceil(g.volume / 2) : 0; /* M3_PER_PALLET = 2, same as Transport */
+    const url = "../?from=" + city + "&to=CPH" + (pallets > 0 ? "&pallets=" + pallets : "");
+    const shortName = wh.replace(" (Umschlag)", "").replace(" - Direct", "");
+    const label = g.count === 1 ? "1 item" : g.count + " items";
+    return '<a class="toggle" href="' + url + '" target="_blank" ' +
+      'style="font-size:0.85rem;margin:0.3rem 0.4rem 0 0">→ Transport: ' + shortName + " (" + label + ")</a>";
+  }).join("");
+
+  container.innerHTML = (linksHtml ? '<div style="font-size:0.75rem;color:var(--muted);margin-bottom:0.4rem">Send to Transport:</div>' : "") + linksHtml;
 }
 
 /* ---- Description cell markup for a given (desc, found) pair ---- */
@@ -651,6 +707,8 @@ function parseMasterWorkbook(buf) {
   const cItem = findColByAny(header, ["Item number"]);
   const cDesc = findColByAny(header, ["Description"]);
   const cSetup = findColByAny(header, ["Setup cost €", "Setup cost"]); /* optional - not used on this page, kept for the RFQ tool's sake */
+  const cWeight = findColByAny(header, ["Weight (g)", "Weight"]); /* optional - used only for "Send to Transport" pallets, not shown in the UI */
+  const cVolume = findColByAny(header, ["Volume (m3)", "Volume"]); /* optional - same as above */
   if (cItem === -1 || cDesc === -1) {
     throw new Error('Could not find "Item number" and "Description" columns in the header row.');
   }
@@ -662,9 +720,13 @@ function parseMasterWorkbook(buf) {
     const itemNo = row[cItem];
     if (itemNo === undefined || itemNo === null || itemNo === "") continue;
     const setup = cSetup !== -1 ? row[cSetup] : undefined;
+    const weightG = cWeight !== -1 ? row[cWeight] : undefined;
+    const volumeM3 = cVolume !== -1 ? row[cVolume] : undefined;
     items[String(itemNo).trim()] = {
       d: row[cDesc] !== undefined && row[cDesc] !== null ? String(row[cDesc]) : "",
-      s: typeof setup === "number" ? Math.round(setup * 100) / 100 : 0
+      s: typeof setup === "number" ? Math.round(setup * 100) / 100 : 0,
+      w: typeof weightG === "number" ? Math.round(weightG / 1000 * 1000) / 1000 : 0,
+      v: typeof volumeM3 === "number" ? Math.round(volumeM3 * 10000) / 10000 : 0
     };
   }
   return items;
