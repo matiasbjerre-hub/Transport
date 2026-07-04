@@ -119,20 +119,21 @@
     border-color: var(--accent);
     box-shadow: 0 0 0 3px rgba(200,16,46,0.12);
   }
-  input.rental-days {
-    width: 4.5rem;
+  input.rental-days, input.itemno-input, input.qty-input {
     padding: 0.4rem 0.5rem;
     font-family: inherit;
     font-size: 0.9rem;
     border: 1px solid var(--line);
     border-radius: 8px;
-    text-align: right;
   }
-  input.rental-days:focus {
+  input.rental-days:focus, input.itemno-input:focus, input.qty-input:focus {
     outline: none;
     border-color: var(--accent);
     box-shadow: 0 0 0 3px rgba(200,16,46,0.12);
   }
+  input.rental-days { width: 4.5rem; text-align: right; }
+  input.itemno-input { width: 6rem; }
+  input.qty-input { width: 4.5rem; text-align: right; }
   select.row-warehouse {
     width: 100%;
     min-width: 11rem;
@@ -443,11 +444,10 @@ function renderResults(items, excludedLocal) {
 
   const rowsHtml = rows.map(function (r, i) {
     const rowClass = r.found ? "" : "flag-missing";
-    const flagHtml = r.found ? "" : '<span class="flag-note">not in master data</span>';
-    return '<tr class="' + rowClass + '">' +
-      "<td>" + r.itemNo + "</td>" +
-      '<td class="num">' + r.qty + "</td>" +
-      '<td class="flag">' + r.desc + " " + flagHtml + "</td>" +
+    return '<tr class="' + rowClass + '" id="row_' + i + '">' +
+      '<td><input type="text" class="itemno-input" id="itemNo_' + i + '" value="' + r.itemNo + '"></td>' +
+      '<td class="num"><input type="number" class="qty-input" id="qty_' + i + '" value="' + r.qty + '" min="1" step="1"></td>' +
+      '<td class="flag" id="descCell_' + i + '">' + descCellHtml(r.desc, r.found) + "</td>" +
       '<td class="num">' +
         '<input type="number" class="rental-days" id="rentalDays_' + i + '" min="1" step="1" value="' + defaultDays + '">' +
       "</td>" +
@@ -470,18 +470,47 @@ function renderResults(items, excludedLocal) {
 
   document.getElementById("copyBtn").addEventListener("click", copyResultsAsText);
   document.getElementById("downloadBtn").addEventListener("click", downloadWorkbook);
+  rows.forEach(function (r, i) {
+    document.getElementById("itemNo_" + i).addEventListener("input", function () { refreshRowDescription(i); });
+  });
 }
 
-/* ---- Read {itemNo, qty, desc, rentalDays, warehouse} for every row, both
-   live from the DOM (rentalDays/warehouse are per-row, editable) ---- */
+/* ---- Description cell markup for a given (desc, found) pair ---- */
+function descCellHtml(desc, found) {
+  return desc + (found ? "" : ' <span class="flag-note">not in master data</span>');
+}
+
+/* ---- Live-lookup the Description the moment an Art.Nr. box is edited - no
+   page reload or "update" button needed, since datenbestand.json is already
+   loaded client-side in DB. Purely cosmetic (updates the on-screen cell and
+   row flag); getRowsWithCurrentInputs() below re-derives the description
+   from scratch at download/copy time regardless, so this can't go stale. ---- */
+function refreshRowDescription(i) {
+  const itemNoEl = document.getElementById("itemNo_" + i);
+  const rowEl = document.getElementById("row_" + i);
+  const descCellEl = document.getElementById("descCell_" + i);
+  const itemNo = itemNoEl.value.trim();
+  const entry = DB.items[itemNo];
+  const fallbackDesc = currentRows[i] ? currentRows[i].desc : "";
+  descCellEl.innerHTML = descCellHtml(entry && entry.d ? entry.d : fallbackDesc, !!entry);
+  rowEl.className = entry ? "" : "flag-missing";
+}
+
+/* ---- Read {itemNo, qty, desc, rentalDays, warehouse} for every row, all
+   live from the DOM (every field here is now editable) - Description is
+   re-looked-up from the current Art.Nr., not read from the cosmetic cell. ---- */
 function getRowsWithCurrentInputs() {
   return currentRows.map(function (r, i) {
+    const itemNoEl = document.getElementById("itemNo_" + i);
+    const qtyEl = document.getElementById("qty_" + i);
     const daysEl = document.getElementById("rentalDays_" + i);
     const whEl = document.getElementById("warehouse_" + i);
+    const itemNo = itemNoEl ? itemNoEl.value.trim() : r.itemNo;
+    const entry = DB.items[itemNo];
     return {
-      itemNo: r.itemNo,
-      qty: r.qty,
-      desc: r.desc,
+      itemNo: itemNo,
+      qty: qtyEl && qtyEl.value !== "" ? parseFloat(qtyEl.value) : r.qty,
+      desc: entry && entry.d ? entry.d : r.desc,
       rentalDays: daysEl && daysEl.value !== "" ? daysEl.value : "",
       warehouse: whEl ? whEl.value : ""
     };

@@ -50,8 +50,10 @@ pattern as the Transport calculator above.
   can never be subrented from elsewhere; this is different from the Master
   Datenbestand merge above, which is about looking up *description* data for
   19-prefix items, not about whether they're eligible for subrental at all) →
-  shown as an on-screen preview table with, **per row**, an editable "Rental
-  days" field and a **"Warehouse" dropdown** (`WAREHOUSE_OPTIONS`:
+  shown as an on-screen preview table where **every field is editable per
+  row**: Art.Nr. and Qty (added 2026-07-03 - plain `<input>`s, `id="itemNo_i"`
+  / `id="qty_i"`), plus the existing Rental days field and **"Warehouse"
+  dropdown** (`WAREHOUSE_OPTIONS`:
   Hamburg/Berlin/Bocholt/Hanover "Umschlag", Frankfurt/Munich "Direct" —
   per-row because different missing items may need to come from different
   warehouses, not a single order-level choice). Rental days defaults from the
@@ -73,6 +75,20 @@ pattern as the Transport calculator above.
   `getRowsWithCurrentInputs()`) — meant to contain everything needed to submit
   the internal subrental request. "Copy as text" (tab-separated, same live
   values) is also available. No login; the page is fully public.
+- **Editing Art.Nr. live-updates the Description, no page reload or "update"
+  button** (added 2026-07-03, per explicit user request — they asked whether
+  this was possible before falling back to an update button; it was, so no
+  button was added). Mechanism: `datenbestand.json` is already loaded
+  client-side into `DB` on page load, so an `input` listener on each
+  `itemNo_i` box (`refreshRowDescription(i)`) just re-looks-up `DB.items[...]`
+  and rewrites that row's `descCell_i` + toggles `flag-missing` on `row_i` —
+  all synchronous, no fetch. This is **purely cosmetic**, though:
+  `getRowsWithCurrentInputs()` (used by both Download and Copy) independently
+  re-derives the description from the *current* Art.Nr. value every time it's
+  called, rather than trusting whatever the cosmetic cell currently displays
+  — so even if the live-update listener were ever removed or broken, the
+  actual output would still be correct. Don't couple the two more tightly
+  than that; the redundancy is deliberate cheap insurance, not an oversight.
 - **No explanatory note box below the upload card** — removed on 2026-07-03 per
   explicit request (there used to be a `.note` div explaining the 19-prefix
   exclusion, Rental days scale, etc.; the CSS rule was deleted too since
