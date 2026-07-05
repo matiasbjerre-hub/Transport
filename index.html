@@ -31,7 +31,7 @@
     flex-direction: column;
   }
   header {
-    padding: 1.5rem 2.5rem;
+    padding: 1rem 1.5rem 0.75rem;
     display: flex;
     align-items: center;
     gap: 1.1rem;
@@ -44,11 +44,11 @@
     letter-spacing: -0.01em;
     color: #ffffff;
   }
-  header img.logo { height: 46px; width: auto; display: block; }
+  header img.logo { height: 38px; width: auto; display: block; }
   nav.tabs {
     display: flex;
     gap: 0.5rem;
-    padding: 0 2.5rem 1.25rem;
+    padding: 0 1.5rem 0.9rem;
     flex-wrap: wrap;
   }
   nav.tabs a {
@@ -80,37 +80,37 @@
        than the viewport; on tall content the margins collapse to 0 and the page
        scrolls normally (no clipping). */
     margin: auto;
-    padding: 1.5rem 1.5rem 4rem;
+    padding: 0.5rem 1.25rem 2rem;
   }
   .card {
     background: var(--card);
     border: 1px solid var(--line);
     border-radius: var(--radius);
-    padding: 1.75rem;
-    margin-bottom: 1.5rem;
+    padding: 1.1rem 1.25rem;
+    margin-bottom: 1rem;
     box-shadow: 0 1px 3px rgba(0,0,0,0.04);
   }
   .card h2 {
-    font-size: 1rem;
+    font-size: 0.9rem;
     font-weight: 600;
-    margin: 0 0 1.25rem;
+    margin: 0 0 0.85rem;
   }
-  .field { margin-bottom: 1.25rem; }
+  .field { margin-bottom: 0.75rem; }
   .field:last-child { margin-bottom: 0; }
   label {
     display: block;
-    font-size: 0.8rem;
+    font-size: 0.7rem;
     font-weight: 600;
     color: var(--muted);
-    margin-bottom: 0.4rem;
+    margin-bottom: 0.28rem;
     text-transform: uppercase;
     letter-spacing: 0.03em;
   }
   select, input {
     width: 100%;
-    padding: 0.75rem 0.9rem;
+    padding: 0.5rem 0.7rem;
     font-family: inherit;
-    font-size: 1rem;
+    font-size: 0.9rem;
     border: 1px solid var(--line);
     border-radius: 10px;
     background: #fff;
@@ -126,13 +126,13 @@
   .row .field { flex: 1; margin-bottom: 0; }
   .swap {
     flex: 0 0 auto;
-    height: 48px;
-    width: 48px;
+    height: 40px;
+    width: 40px;
     border: 1px solid var(--line);
     border-radius: 10px;
     background: #fff;
     cursor: pointer;
-    font-size: 1.2rem;
+    font-size: 1.05rem;
     color: var(--muted);
     transition: all 0.15s;
   }
@@ -144,9 +144,9 @@
   input[readonly] { background: #f5f5f4; color: var(--muted); cursor: not-allowed; }
   .toggle {
     width: 100%;
-    padding: 0.75rem 1rem;
+    padding: 0.55rem 0.9rem;
     font-family: inherit;
-    font-size: 0.95rem;
+    font-size: 0.82rem;
     font-weight: 600;
     border: 1px solid var(--line);
     border-radius: 10px;
@@ -172,19 +172,22 @@
   }
   .toggle.active .dot { background: #fff; }
   .result {
-    margin-top: 0.5rem;
+    margin-top: 0.4rem;
     text-align: center;
-    padding: 1.5rem;
+    padding: 0.9rem 1rem;
     border-radius: var(--radius);
     background: linear-gradient(135deg, #fafafa, #f0f0ef);
     border: 1px dashed var(--line);
   }
-  .result .amount { font-size: 2rem; font-weight: 700; color: var(--brand); }
-  .result .label-sm { font-size: 0.8rem; color: var(--muted); }
-  .result.empty .amount { color: var(--muted); font-weight: 600; font-size: 1.1rem; }
+  .result .amount { font-size: 1.5rem; font-weight: 700; color: var(--brand); }
+  .result .label-sm { font-size: 0.7rem; color: var(--muted); }
+  .result.empty .amount { color: var(--muted); font-weight: 600; font-size: 0.95rem; }
+  /* Add button now lives inside the result box, under "total · both ways" */
+  #addBtn { width: auto; display: inline-flex; margin-top: 0.7rem; padding: 0.35rem 0.85rem; font-size: 0.72rem; }
+  .result.empty #addBtn { display: none; }
   .legs {
-    margin: 0.25rem 0 0.75rem;
-    font-size: 0.9rem;
+    margin: 0.25rem 0 0.6rem;
+    font-size: 0.8rem;
   }
   .legs .leg {
     display: flex; justify-content: space-between;
@@ -208,16 +211,13 @@
   .rm:hover { border-color: var(--accent); color: var(--accent); }
   .vehicles {
     display: none;
-    margin-top: 0.75rem;
+    margin-top: 0.4rem;
     text-align: center;
-    padding: 0.85rem 1rem;
-    border-radius: 10px;
-    background: #fff;
-    border: 1px solid var(--line);
-    font-size: 0.9rem;
+    font-size: 0.72rem;
+    color: var(--muted);
   }
   .vehicles.show { display: block; }
-  .vehicles .v-name { font-weight: 700; color: var(--brand); }
+  .vehicles .v-name { font-weight: 600; color: var(--muted); }
   .upstatus { font-size: 0.85rem; margin-top: 0.6rem; min-height: 1.2em; text-align: center; }
   .upstatus.ok { color: #1a7f37; }
   .upstatus.err { color: var(--accent); }
@@ -297,7 +297,7 @@
 
       <div class="row">
         <div class="field">
-          <label for="volume">Cubic metres (m³) <span class="opt">— optional</span></label>
+          <label for="volume">M<sup>3</sup></label>
           <input type="number" id="volume" min="0" step="0.1" placeholder="e.g. 16">
         </div>
         <div class="field">
@@ -322,16 +322,13 @@
       </div>
 
       <div class="result empty" id="result">
-        <div class="amount">Select origin and destination</div>
+        <div id="resultBody">
+          <div class="amount">Select origin and destination</div>
+        </div>
+        <button class="toggle" id="addBtn">&#43; Add this transport to the total</button>
       </div>
 
       <div class="vehicles" id="vehicles"></div>
-
-      <button class="toggle" id="addBtn" style="margin-top:0.75rem;">&#43; Add this transport to the list</button>
-
-      <input type="file" id="file" accept=".xlsx,.xls" hidden>
-      <button class="toggle" id="uploadBtn" style="margin-top:0.75rem;">⬆ Update price list</button>
-      <div id="upstatus" class="upstatus"></div>
 
       <details class="note-toggle">
         <summary><span class="plus-icon">+</span> Note</summary>
@@ -345,6 +342,9 @@
           (rounded up). Routes via Malmö are intentionally excluded. ★ marks the
           Copenhagen Umschlag cities.
         </div>
+        <input type="file" id="file" accept=".xlsx,.xls" hidden>
+        <button class="toggle" id="uploadBtn" style="margin-top:0.75rem;">⬆ Update price list</button>
+        <div id="upstatus" class="upstatus"></div>
       </details>
     </div>
 
@@ -474,6 +474,7 @@ const palletsEl = document.getElementById("pallets");
 const currencyEl = document.getElementById("currency");
 const twowaysBtn = document.getElementById("twoways");
 const resultEl = document.getElementById("result");
+const resultBodyEl = document.getElementById("resultBody");
 const vehiclesEl = document.getElementById("vehicles");
 const fileEl = document.getElementById("file");
 const uploadBtn = document.getElementById("uploadBtn");
@@ -595,7 +596,7 @@ function formatMoney(amountEur) {
 
 function showEmpty(msg, route) {
   resultEl.className = "result empty";
-  resultEl.innerHTML =
+  resultBodyEl.innerHTML =
     (route ? '<div class="label-sm">' + route + '</div>' : "") +
     '<div class="amount">' + msg + '</div>';
   vehiclesEl.className = "vehicles";
@@ -659,7 +660,7 @@ function calculate() {
 
   if (!r.twoWays) {
     resultEl.className = "result";
-    resultEl.innerHTML =
+    resultBodyEl.innerHTML =
       '<div class="label-sm">' + route + " · " + palLabel + '</div>' +
       '<div class="amount">' + formatMoney(r.priceEur) + '</div>' +
       '<div class="label-sm">one way</div>';
@@ -669,7 +670,7 @@ function calculate() {
   }
 
   resultEl.className = "result";
-  resultEl.innerHTML =
+  resultBodyEl.innerHTML =
     '<div class="label-sm">Round trip · ' + palLabel + '</div>' +
     '<div class="legs">' +
       '<div class="leg"><span>' + nameOf(r.from) + " &rarr; " + nameOf(r.to) +
