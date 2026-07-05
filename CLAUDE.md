@@ -172,6 +172,38 @@ pattern as the Transport calculator above.
   button on the page (Calculate, 2-ways, Add to list) and must stay at normal
   size/weight.
 
+## Four-app hub (`hub/`) — one URL, all four apps as tabs (2026-07-05)
+
+`hub/index.html` is the unified entry point everyone shares:
+**https://matiasbjerre-hub.github.io/Transport/hub/**. It's a single static file:
+a slim top bar (logo + 4 pill tabs) over one full-height `<iframe>` that swaps
+per tab, with `#hash` routing (`#transport`/`#subrental`/`#catalogue`/`#rfq`) so
+tabs are bookmarkable and the back button works. The iframe only reloads when the
+tab actually changes (`data-key` guard).
+
+- **Routing/paths** (`ROUTES` in `hub/index.html`): Transport `../`, Subrental
+  `../subrental/`, Catalogue `../../catalogue/` — all same-origin on
+  `matiasbjerre-hub.github.io`, so they embed with zero X-Frame/cookie issues.
+  RFQ is the absolute Apps Script `/exec` URL; it embeds because RFQ is now
+  **anonymous** (see RFQ repo's CLAUDE.md) — that removed the third-party-cookie
+  grey-box problem, so it no longer needs an "open in new tab" exception. If the
+  RFQ `/exec` deployment id ever changes, update it here too.
+- **Embedded apps hide their own chrome:** Transport and Subrental add
+  `html.embedded { ... }` CSS + a one-line `if (window.top !== window.self)`
+  script (just before `</head>`) that hides their own `header` + `nav.tabs` when
+  framed, so you don't get a double header. Standalone pages are unchanged. The
+  Catalogue keeps its own header (not worth a re-bundle for v1).
+- **"Send to Transport" stays inside the hub:** Subrental's link carries
+  `data-legs`/`data-to` + `onclick="return hubSendToTransport(event, this)"`.
+  When framed it `postMessage`s `{type:"rg:legs",legs,to}` to the hub (same-origin
+  check both ends); the hub switches to the Transport tab and loads
+  `../?legs=…&to=CPH`, which Transport's `applyLegsParam` reads. Standalone it
+  falls back to the existing `target="_blank"` link. (Note `applyLegsParam` uses
+  the global `twoWays` default = round trip.)
+- Verified in preview: all 4 tabs switch, RFQ renders its passcode gate embedded
+  with no Google login, embedded Transport/Subrental have no double header, and
+  the Send-to-Transport handoff populates the cart in the Transport tab.
+
 ## Tab navigation between Transport and Subrental
 
 Both pages now share a small pill-style tab bar right below the header logo

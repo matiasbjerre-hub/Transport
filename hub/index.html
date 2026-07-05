@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rent.Group — Tools</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    display: flex;
+    flex-direction: column;
+    background: #000;
+    font-family: 'Montserrat', system-ui, sans-serif;
+  }
+  .hubbar {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.55rem 1.25rem;
+    background: #000;
+    flex-wrap: wrap;
+    flex: 0 0 auto;
+  }
+  .hubbar img { height: 30px; width: auto; display: block; }
+  .hubbar nav { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+  .hubbar a {
+    font-family: inherit;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #9a9a9a;
+    text-decoration: none;
+    padding: 0.4rem 0.95rem;
+    border-radius: 999px;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
+  .hubbar a:hover { color: #fff; border-color: #333; }
+  .hubbar a.active { background: #fff; color: #1a1a1a; }
+  .hubbar a .ext { font-size: 0.7rem; opacity: 0.7; }
+  .frame-wrap { flex: 1 1 auto; position: relative; background: #fff; min-height: 0; }
+  iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; display: block; }
+</style>
+</head>
+<body>
+  <div class="hubbar">
+    <img src="../logo.png" alt="Rent.Group">
+    <nav>
+      <a data-tab="transport" href="#transport">Transport</a>
+      <a data-tab="subrental" href="#subrental">Subrental</a>
+      <a data-tab="catalogue" href="#catalogue">Catalogue</a>
+      <a data-tab="rfq" href="#rfq">RFQ</a>
+    </nav>
+  </div>
+  <div class="frame-wrap">
+    <iframe id="appFrame" title="Rent.Group app" allow="clipboard-write"></iframe>
+  </div>
+
+<script>
+  /* Each tab swaps the single full-height iframe. Transport, Subrental and
+     Catalogue are same-origin GitHub Pages (relative paths); RFQ is the
+     Apps Script /exec app (now anonymous, so it embeds without a Google
+     login). #hash routing makes every tab bookmarkable + back-button aware.
+     The iframe is only reloaded when the tab actually changes. */
+  var ROUTES = {
+    transport: "../",
+    subrental: "../subrental/",
+    catalogue: "../../catalogue/",
+    rfq: "https://script.google.com/macros/s/AKfycbxQdgRCwMfTghCs4a8uQIfVvkODyUoof_kL7VI6LKZxQBf2floEVr_rAod2FLh1wdB1/exec"
+  };
+  var ORDER = ["transport", "subrental", "catalogue", "rfq"];
+  var frame = document.getElementById("appFrame");
+  var links = document.querySelectorAll(".hubbar a");
+
+  function route() {
+    var key = (location.hash || "").replace(/^#/, "");
+    if (ROUTES[key] === undefined) key = "transport";
+    if (frame.getAttribute("data-key") !== key) {
+      frame.src = ROUTES[key];
+      frame.setAttribute("data-key", key);
+    }
+    for (var i = 0; i < links.length; i++) {
+      links[i].classList.toggle("active", links[i].getAttribute("data-tab") === key);
+    }
+  }
+
+  window.addEventListener("hashchange", route);
+  route();
+
+  /* Subrental's "Send to Transport" posts the legs here when it detects it is
+     framed, so the handoff stays inside the hub: switch to the Transport tab
+     and load it with the legs pre-filled (Transport's applyLegsParam reads
+     them on load). Only accept messages from our own origin. */
+  window.addEventListener("message", function (e) {
+    if (e.origin !== window.location.origin) return;
+    var d = e.data || {};
+    if (d.type !== "rg:legs" || !d.legs) return;
+    frame.src = "../?legs=" + encodeURIComponent(d.legs) + "&to=" + encodeURIComponent(d.to || "CPH");
+    frame.setAttribute("data-key", "transport");
+    if (location.hash !== "#transport") { location.hash = "transport"; }
+    else {
+      for (var i = 0; i < links.length; i++) {
+        links[i].classList.toggle("active", links[i].getAttribute("data-tab") === "transport");
+      }
+    }
+  });
+</script>
+</body>
+</html>

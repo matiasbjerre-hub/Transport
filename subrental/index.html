@@ -227,7 +227,11 @@
     color: #999999;
     padding: 2rem;
   }
+  /* When embedded in the four-app hub, hide this app's own header + tab bar
+     (the hub provides them). Auto-detected via framing; standalone is unchanged. */
+  html.embedded header, html.embedded nav.tabs { display: none !important; }
 </style>
+<script>if (window.top !== window.self) document.documentElement.classList.add('embedded');</script>
 </head>
 <body>
   <header>
@@ -545,8 +549,22 @@ function refreshTransportLinks() {
 
   container.innerHTML =
     '<div style="font-size:0.75rem;color:var(--muted);margin-bottom:0.4rem">Send to Transport:</div>' +
-    '<a class="toggle" href="' + url + '" target="_blank" style="font-size:0.85rem">' +
+    '<a class="toggle" href="' + url + '" target="_blank" style="font-size:0.85rem"' +
+    ' data-legs="' + legsParam + '" data-to="CPH" onclick="return hubSendToTransport(event, this)">' +
     "→ Transport: all " + totalItems + " items (" + summary + ")</a>";
+}
+
+/* When Subrental runs inside the four-app hub, hand the legs to the hub via
+   postMessage so it switches to the Transport tab in-place. Standalone (not
+   framed), fall through to the normal target="_blank" link (new tab). */
+function hubSendToTransport(event, el) {
+  if (window.top === window.self) return true;
+  event.preventDefault();
+  window.parent.postMessage(
+    { type: "rg:legs", legs: el.getAttribute("data-legs"), to: el.getAttribute("data-to") },
+    window.location.origin
+  );
+  return false;
 }
 
 /* ---- Description cell markup for a given (desc, found) pair ---- */
