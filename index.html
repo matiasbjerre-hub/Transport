@@ -262,11 +262,13 @@
     text-align: center;
     font-size: 0.75rem;
     color: #999999;
-    padding: 2rem;
+    padding: 1.25rem 2rem;
   }
-  /* When embedded in the four-app hub, hide this app's own header + tab bar
-     (the hub provides them). Auto-detected via framing; standalone is unchanged. */
-  html.embedded header, html.embedded nav.tabs { display: none !important; }
+  /* When embedded in the four-app hub, hide this app's own header, tab bar and
+     footer (the hub provides them). Hiding the footer also frees vertical space
+     so the compact content can sit truly centered in the hub. Auto-detected via
+     framing; standalone is unchanged. */
+  html.embedded header, html.embedded nav.tabs, html.embedded footer { display: none !important; }
 </style>
 <script>if (window.top !== window.self) document.documentElement.classList.add('embedded');</script>
 </head>
