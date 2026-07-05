@@ -53,10 +53,10 @@
   <div class="hubbar">
     <img src="../logo.png" alt="Rent.Group">
     <nav>
-      <a data-tab="transport" href="#transport">Transport</a>
-      <a data-tab="subrental" href="#subrental">Subrental</a>
       <a data-tab="catalogue" href="#catalogue">Catalogue</a>
       <a data-tab="rfq" href="#rfq">RFQ</a>
+      <a data-tab="subrental" href="#subrental">Subrental</a>
+      <a data-tab="transport" href="#transport">Transport</a>
     </nav>
   </div>
   <div class="frame-wrap">
@@ -75,13 +75,13 @@
     catalogue: "../../catalogue/",
     rfq: "https://script.google.com/macros/s/AKfycbxQdgRCwMfTghCs4a8uQIfVvkODyUoof_kL7VI6LKZxQBf2floEVr_rAod2FLh1wdB1/exec"
   };
-  var ORDER = ["transport", "subrental", "catalogue", "rfq"];
+  var ORDER = ["catalogue", "rfq", "subrental", "transport"];
   var frame = document.getElementById("appFrame");
   var links = document.querySelectorAll(".hubbar a");
 
   function route() {
     var key = (location.hash || "").replace(/^#/, "");
-    if (ROUTES[key] === undefined) key = "transport";
+    if (ROUTES[key] === undefined) key = "catalogue";
     if (frame.getAttribute("data-key") !== key) {
       frame.src = ROUTES[key];
       frame.setAttribute("data-key", key);

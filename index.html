@@ -26,6 +26,9 @@
     background: var(--bg);
     color: var(--text);
     line-height: 1.5;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
   }
   header {
     padding: 1.5rem 2.5rem;
@@ -73,8 +76,11 @@
   }
   main {
     max-width: 640px;
-    margin: 0 auto;
-    padding: 0 1.5rem 4rem;
+    /* auto top/bottom margin centers the content vertically when it is shorter
+       than the viewport; on tall content the margins collapse to 0 and the page
+       scrolls normally (no clipping). */
+    margin: auto;
+    padding: 1.5rem 1.5rem 4rem;
   }
   .card {
     background: var(--card);
