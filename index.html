@@ -269,6 +269,26 @@
      so the compact content can sit truly centered in the hub. Auto-detected via
      framing; standalone is unchanged. */
   html.embedded header, html.embedded nav.tabs, html.embedded footer { display: none !important; }
+  /* Help "?" with hover/focus tooltip (short how-to for the app) */
+  .help {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 18px; height: 18px; margin-left: 0.4rem; vertical-align: middle;
+    border-radius: 50%; border: 1px solid var(--line);
+    color: var(--muted); font-size: 11px; font-weight: 700;
+    cursor: help; position: relative; user-select: none;
+  }
+  .help:hover, .help:focus { border-color: var(--accent); color: var(--accent); outline: none; }
+  .help .help-tip {
+    position: absolute; top: calc(100% + 8px); left: 0; z-index: 50;
+    width: 280px; max-width: 76vw;
+    background: #1a1a1a; color: #fff;
+    font-size: 0.72rem; font-weight: 400; line-height: 1.5;
+    text-transform: none; letter-spacing: normal; text-align: left;
+    padding: 0.7rem 0.8rem; border-radius: 8px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.22);
+    opacity: 0; visibility: hidden; transition: opacity 0.15s; pointer-events: none;
+  }
+  .help:hover .help-tip, .help:focus .help-tip { opacity: 1; visibility: visible; }
 </style>
 <script>if (window.top !== window.self) document.documentElement.classList.add('embedded');</script>
 </head>
@@ -283,7 +303,7 @@
 
   <main>
     <div class="card">
-      <h2>Calculate the cost of a transport</h2>
+      <h2>Calculate the cost of a transport <span class="help" tabindex="0" role="button" aria-label="How to use this tool">?<span class="help-tip">Work out what a transport costs. Pick the origin and destination, enter the number of pallets (or cubic metres — pallets = m³ ÷ 2), and choose a currency. Turn on 2-ways for a return trip. Use “+ Add this transport to the total” to combine several routes into one price. The vehicle is chosen automatically from the pallet count.</span></span></h2>
 
       <div class="row">
         <div class="field">

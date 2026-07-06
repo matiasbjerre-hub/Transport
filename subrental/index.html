@@ -237,6 +237,26 @@
      footer (the hub provides them). Hiding the footer also frees vertical space
      so the content can sit centered in the hub. Standalone is unchanged. */
   html.embedded header, html.embedded nav.tabs, html.embedded footer { display: none !important; }
+  /* Help "?" with hover/focus tooltip (short how-to for the app) */
+  .help {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 18px; height: 18px; margin-left: 0.4rem; vertical-align: middle;
+    border-radius: 50%; border: 1px solid var(--line);
+    color: var(--muted); font-size: 11px; font-weight: 700;
+    cursor: help; position: relative; user-select: none;
+  }
+  .help:hover, .help:focus { border-color: var(--accent); color: var(--accent); outline: none; }
+  .help .help-tip {
+    position: absolute; top: calc(100% + 8px); left: 0; z-index: 50;
+    width: 280px; max-width: 76vw;
+    background: #1a1a1a; color: #fff;
+    font-size: 0.72rem; font-weight: 400; line-height: 1.5;
+    text-transform: none; letter-spacing: normal; text-align: left;
+    padding: 0.7rem 0.8rem; border-radius: 8px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.22);
+    opacity: 0; visibility: hidden; transition: opacity 0.15s; pointer-events: none;
+  }
+  .help:hover .help-tip, .help:focus .help-tip { opacity: 1; visibility: visible; }
 </style>
 <script>if (window.top !== window.self) document.documentElement.classList.add('embedded');</script>
 </head>
@@ -251,7 +271,7 @@
 
   <main>
     <div class="card">
-      <h2>Subrental Assistant</h2>
+      <h2>Subrental Assistant <span class="help" tabindex="0" role="button" aria-label="How to use this tool">?<span class="help-tip">Prepare a subrental request for items you’re short on. Export the “Items” tab (Tab 4) from AGP and upload it — rows with Missing stock &gt; 0 appear here. Edit the article no., quantity, rental days and warehouse per row, fill in the order no. and subrental period, then “Download .xlsx” to submit — or “Send to Transport” to price the delivery.</span></span></h2>
       <p style="font-size:0.9rem;color:var(--muted);margin-top:0">
         Export the contents of 'Items' (Tab 4) in AGP and upload it here.
       </p>
@@ -668,9 +688,26 @@ function downloadWorkbook() {
   XLSX.utils.book_append_sheet(wb, ws, "Subrental request");
 
   const filename = "Subrental_" + orderNo + "_" + periodFrom + "_" + periodTo + ".xlsx";
-  XLSX.writeFile(wb, filename);
-  statusEl.textContent = "Downloaded " + filename;
-  statusEl.className = "upstatus ok";
+  /* Trigger the download explicitly via a Blob + <a download> instead of
+     XLSX.writeFile(). writeFile's built-in browser download is unreliable on
+     Safari and inside the hub's iframe; this path works everywhere. */
+  try {
+    const wbout = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+    const blob = new Blob([wbout], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1500);
+    statusEl.textContent = "Downloaded " + filename;
+    statusEl.className = "upstatus ok";
+  } catch (e) {
+    statusEl.textContent = "Download failed: " + (e && e.message ? e.message : e);
+    statusEl.className = "upstatus err";
+  }
 }
 
 /* ---- Pull the order no. out of a filename, e.g. "Missing items order
