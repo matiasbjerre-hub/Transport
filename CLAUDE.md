@@ -125,33 +125,83 @@ pattern as the Transport calculator above.
   Rebuilds `subrental/datenbestand.json` from an uploaded Master Datenbestand
   `.xlsx` (columns identified by header name: "Item number", "Description" —
   "Setup cost €" is parsed if present but optional, not required).
-- **Download layout is currently provisional/standalone** (plain
-  `aoa_to_sheet` — no template formatting), built with `XLSX.utils` because the
-  user's actual updated "Skabelon til Claude Code.xlsx" (moved fields, deleted
-  K/L formulas) still couldn't be read as of 2026-07-03 — OneDrive sync has
-  been stuck on this user's machine for an extended period (whole folder
-  affected, not just this file; survived a full Mac restart). **Follow-up
-  needed:** once readable, fetch it into `subrental/` as a static asset, load
-  with `XLSX.read(buf, {cellStyles:true})`, locate the moved Order no./period
-  fields and the A/B/C row range by label/header search (not hardcoded cell
-  refs — they've already moved once), write values into the existing cells
-  (don't touch `.s` style refs), and write out with
-  `XLSX.writeFile`. Note SheetJS Community Edition's style-preservation on
-  write is not fully reliable for every feature (conditional formatting/data
-  validation especially) — verify the actual downloaded file opens looking
-  right before calling it done. Also check whether the template still wants a
-  Setup Cost column at all before re-adding one — it was explicitly removed
-  from this page's scope.
+- **Download fills the REAL internal template** (`subrental/template.xlsx`),
+  implemented 2026-08-05 — supersedes the earlier plain-`aoa_to_sheet` version
+  and an even earlier note here (now wrong) claiming K/L had been removed from
+  the Excel template. The real source file is
+  `.../Quote Flow/Skabelon til Claude Code.xlsx` on OneDrive.
+  - **Why not SheetJS's `XLSX.write()`:** tested empirically — a plain
+    `XLSX.read()` → `XLSX.write()` round-trip **drops font formatting**
+    (verified: a bold header cell came back non-bold) even with
+    `cellStyles:true`. Full style *writing* is a SheetJS Pro-only feature;
+    Community only writes number formats reliably. Since colleagues actually
+    submit this file, that's not acceptable.
+  - **What we do instead:** direct XML surgery on `xl/worksheets/sheet1.xml`
+    inside the .xlsx zip (via JSZip, loaded from cdnjs — see the `<script>`
+    tag next to the SheetJS one). Every cell we fill in already exists in the
+    template as a style-only empty tag (e.g. `<c r="A12" s="52" t="n" />`); we
+    regex-match the exact `<c r="ADDR" ...>` element and rewrite only its
+    value, preserving its `s=` style attribute byte-for-byte. Nothing else in
+    the file is touched — this guarantees existing formatting/formulas survive
+    exactly. The functions (`setCell`, `renumberRow`, `fillSubrentalSheet`,
+    etc.) live in `subrental/index.html` right above `downloadWorkbook()`; they
+    were prototyped and verified in isolation (Node + JSZip + openpyxl, several
+    item counts) before being ported in — see the reasoning comment above them
+    in the code for the exact cell mapping.
+  - **`template.xlsx` is a STRIPPED copy, not the real file verbatim.** The
+    real file's hidden "Datenbestand" sheet is the **entire Group master
+    catalog** (~15,000 rows: `Mietpreis`/rental price, `Reinigung`/cleaning
+    cost, `Aufbau`/setup cost, weight, volume, multi-language names) — shipping
+    it would publish the Group's internal pricing on this fully public,
+    unauthenticated site. The shipped copy has **Datenbestand and
+    Dokumentation (internal staff names/changelog) removed entirely**, plus
+    scrubbed `docProps` (no SharePoint path, no employee names in
+    creator/lastModifiedBy). Only `Calculation` + `Others` sheets remain.
+  - **K/L (Weight/Volume) VLOOKUP formulas were cleared** in the shipped copy
+    (they referenced the now-removed Datenbestand sheet). The app computes the
+    same values itself — `DB.items[x].w` (kg) and `.v` (m³), already loaded
+    client-side from `datenbestand.json` — and writes them in as plain numbers
+    (`qty × w`, `qty × v`), matching what the original formula computed.
+  - **Field mapping** (Calculation sheet): `C4` = Order no. **only** (the
+    template's default value here was the literal text `"CPH "`; explicit user
+    decision 2026-08-05 was to overwrite it with just the order number, not
+    prefix/append it — the destination-is-always-Copenhagen convention isn't
+    encoded in this cell). `C5`/`C6` = subrental period from/to, written as
+    Excel serial dates (`excelSerialDate()` — epoch Dec 30 1899, verified
+    against the known reference 2020-01-01 → 43831). Item rows: `A`=Art.Nr.,
+    `B`=Amount, `C`=Description, `H`=Rental days, `I`=Location (must exactly
+    match one of the `Others` sheet's 6 warehouse strings, which are the same
+    6 values as `WAREHOUSE_OPTIONS` — already guaranteed by construction).
+    `D` (Price), `E` (Discount), `F` (Total), `J` (Rental factor), `M` (Setup
+    Cost) are left alone — no pricing on this page, matches the long-standing
+    scope decision below.
+  - **Row capacity and auto-extension:** the template only has 17 pre-built
+    item rows (12–28), row 28 uniquely carrying the table's bottom border,
+    row 29 the Total. Explicit user decision 2026-08-05, given the choice
+    between capping at 17 with a warning vs. auto-extending: **auto-extend**.
+    When there are more than 17 items, the code clones row 27's plain "middle"
+    style for every additional row, moves the bordered "last row" style
+    (cloned from the original row 28) to whichever row is now actually last,
+    and moves the Total row + its `SUM(...)` ranges + the `C29:D29` merge down
+    to match. Verified for K=1, 17 (boundary, no change), 18 (minimal
+    extension), and 20 items — all structurally correct via openpyxl
+    (values, formulas, merges, borders, dimension). Capped at 60 items
+    (`SUBRENTAL_MAX_ITEMS`) — throws a clear error rather than silently
+    mis-rendering; not expected to be hit in practice.
+  - **If the real template's layout ever changes** (fields move, row range
+    changes, more/fewer warehouses), this entire mapping needs re-deriving
+    from the actual file — don't guess from this doc, re-inspect the real
+    `.xlsx` (e.g. with openpyxl: dump every non-empty cell + merged ranges +
+    the raw `xl/worksheets/sheet1.xml` for the row range in question) the same
+    way this was built.
 - **Not ported:** Price/Discount/Total (D/E/F) from the Excel template. The
   rental-days *factor* formula (J: `weeks===2 ? 1.25 : weeks>2 ? (RD-2)*0.15+1.25
   : RD`) is documented as a comment next to `WEEK_TO_RENTAL_DAYS` in
   `index.html` (verified it reproduces the user's confirmed factors exactly)
-  but **not surfaced anywhere in the UI or download** - there's no cost calc on
-  this page, so nothing to multiply it against yet. If a "Rental factor" column
-  is wanted later, the formula is already there, just needs wiring up. K/L
-  (Weight/Volume) were removed from the Excel template itself on 2026-07-03,
-  so they're moot. Setup Cost (M) was added then explicitly removed — see
-  above. Ask before assuming any of these should be (re-)added.
+  but **not surfaced anywhere in the UI** - there's no cost calc on this page.
+  If a "Rental factor" column is wanted later, the formula is already there,
+  just needs wiring up. Setup Cost (M) was added then explicitly removed —
+  see above. Ask before assuming any of these should be (re-)added.
 - **"AGP" terminology (2026-07-03):** the stock/availability export the user
   uploads comes from a system they call "AGP" (tab 4, "Items"). The intro
   paragraph and upload button both reference this by name now ("Export the

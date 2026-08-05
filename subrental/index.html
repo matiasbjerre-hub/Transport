@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <style>
   :root {
     --brand: #1a1a1a;
@@ -650,10 +651,174 @@ function copyResultsAsText() {
   });
 }
 
-/* ---- Build and trigger download of the subrental request workbook ----
-   Provisional standalone layout until the actual "Skabelon til Claude Code"
-   template can be read and matched exactly (see CLAUDE.md). */
-function downloadWorkbook() {
+/* ============================================================
+   Fill the REAL internal subrental template ("Skabelon til Claude Code.xlsx")
+   via direct XML surgery instead of SheetJS's XLSX.write(). SheetJS's free/
+   Community write path does not reliably preserve cell formatting (verified:
+   a plain read->write round-trip drops header bold) - full style writing is
+   a Pro-only feature. Since colleagues actually submit this file, editing
+   only the specific <v> value nodes we need (leaving every other byte of the
+   original styles/formulas untouched) is the only way to guarantee the
+   existing formatting survives.
+
+   template.xlsx here is a STRIPPED copy of the real template: the
+   "Datenbestand" tab (the full ~15,000-row internal Group pricing/cost
+   master - Mietpreis/Reinigung/Aufbau/weight/volume) and "Dokumentation"
+   (internal staff names/change log) sheets are removed, since this repo is a
+   fully public, unauthenticated site. The K/L (Weight/Volume) VLOOKUP
+   formulas that used to read from Datenbestand are cleared in the shipped
+   copy; this code computes the same values itself from datenbestand.json
+   (already loaded client-side as DB.items[x].w/.v) and writes them as plain
+   numbers. See CLAUDE.md for the full mapping (which template cell is which
+   app field) and the row-insertion design for >17 items. ---- */
+
+function escapeXml(s) {
+  return String(s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+/* Excel's epoch is Dec 30 1899 (accounts for the fake 1900 leap day). */
+function excelSerialDate(isoDateStr) {
+  const d = new Date(isoDateStr + "T00:00:00Z");
+  const epoch = Date.UTC(1899, 11, 30);
+  return Math.round((d.getTime() - epoch) / 86400000);
+}
+
+/* Matches one <c r="ADDR" .../> or <c r="ADDR" ...>...</c> element, without
+   spilling into a neighboring cell (negative lookahead stops content at the
+   next "<c "). */
+function cellRegex(addr) {
+  const esc = addr.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp('<c r="' + esc + '"[^>]*(?:/>|>(?:(?!<c[ >]).)*?</c>)', "s");
+}
+
+/* Set a cell's value in place, preserving its existing style (s=) attribute.
+   type: "str" (inline string) or "num" (plain number). */
+function setCell(sheetXml, addr, type, value) {
+  const m = cellRegex(addr).exec(sheetXml);
+  if (!m) throw new Error("Cell " + addr + " not found in template sheet");
+  const sMatch = /\ss="(\d+)"/.exec(m[0]);
+  const sAttr = sMatch ? ' s="' + sMatch[1] + '"' : "";
+  let replacement;
+  if (type === "str") {
+    replacement = '<c r="' + addr + '"' + sAttr + ' t="inlineStr"><is><t>' + escapeXml(value) + "</t></is></c>";
+  } else {
+    replacement = '<c r="' + addr + '"' + sAttr + ' t="n"><v>' + value + "</v></c>";
+  }
+  return sheetXml.slice(0, m.index) + replacement + sheetXml.slice(m.index + m[0].length);
+}
+
+function extractRowXml(sheetXml, rowNum) {
+  const m = new RegExp('<row r="' + rowNum + '"[^>]*>.*?</row>', "s").exec(sheetXml);
+  if (!m) throw new Error("row " + rowNum + " not found in template");
+  return m[0];
+}
+
+/* Renumber a cloned row's own r= attribute and every "<letter(s)><$?><row>"
+   cell/formula reference (e.g. A28, F12:F28's "F28" part) from fromRow to
+   toRow. Word-boundary anchored so it never touches a longer number. */
+function renumberRow(rowXml, fromRow, toRow) {
+  let out = rowXml.replace(new RegExp('^<row r="' + fromRow + '"'), '<row r="' + toRow + '"');
+  out = out.replace(new RegExp("([A-Z]+\\$?)" + fromRow + "\\b", "g"), "$1" + toRow);
+  return out;
+}
+
+/* Replace an existing <row>...</row> wholesale, or append a new one just
+   before </sheetData> if that row number doesn't exist yet (only possible
+   for a very large item count, past the template's original row-46 padding). */
+function setRow(sheetXml, rowNum, newRowXml) {
+  const m = new RegExp('<row r="' + rowNum + '"[^>]*>.*?</row>', "s").exec(sheetXml);
+  if (m) return sheetXml.slice(0, m.index) + newRowXml + sheetXml.slice(m.index + m[0].length);
+  const idx = sheetXml.indexOf("</sheetData>");
+  if (idx === -1) throw new Error("</sheetData> not found in template");
+  return sheetXml.slice(0, idx) + newRowXml + sheetXml.slice(idx);
+}
+
+/* Template's fixed row layout (see CLAUDE.md): item rows 12-28 (17 rows),
+   row 28 uniquely carries the table's bottom border, row 29 is the Total. */
+const SUBRENTAL_TEMPLATE_ROWS = { firstItemRow: 12, middleTemplateRow: 27, lastItemRow: 28, totalRow: 29, maxOriginalRows: 17 };
+const SUBRENTAL_MAX_ITEMS = 60; /* sanity cap - surface an error rather than silently mis-render */
+
+/* Fill the whole Calculation sheet: header fields (order no., period dates)
+   and every item row (Art.Nr./Amount/Description/Rental days/Location +
+   computed Weight/Volume). Automatically extends the table (cloning row
+   styles, moving the bottom border + Total row) when there are more than 17
+   items. Returns the fully modified sheet XML string. Verified in isolation
+   (Node + openpyxl) against K=1, 17, 18 and 20 before being ported here -
+   see CLAUDE.md. */
+function fillSubrentalSheet(sheetXml, data) {
+  const items = data.items || [];
+  const K = items.length;
+  if (K > SUBRENTAL_MAX_ITEMS) {
+    throw new Error("Too many items (" + K + ") for the subrental template - max supported is " + SUBRENTAL_MAX_ITEMS);
+  }
+
+  if (data.orderNo) sheetXml = setCell(sheetXml, "C4", "str", data.orderNo);
+  if (data.periodFrom) sheetXml = setCell(sheetXml, "C5", "num", excelSerialDate(data.periodFrom));
+  if (data.periodTo) sheetXml = setCell(sheetXml, "C6", "num", excelSerialDate(data.periodTo));
+
+  const T = SUBRENTAL_TEMPLATE_ROWS;
+  const extra = K > T.maxOriginalRows ? K - T.maxOriginalRows : 0;
+
+  if (extra > 0) {
+    const middleTemplateXml = extractRowXml(sheetXml, T.middleTemplateRow);
+    const lastTemplateXml = extractRowXml(sheetXml, T.lastItemRow);
+    const totalTemplateXml = extractRowXml(sheetXml, T.totalRow);
+    const newLastItemRow = 11 + K;
+
+    /* The original last-item row (28) is no longer last - convert to plain middle style. */
+    sheetXml = setRow(sheetXml, T.lastItemRow, renumberRow(middleTemplateXml, T.middleTemplateRow, T.lastItemRow));
+
+    /* Any further new middle rows between the old total row (29) and the new last item row. */
+    for (let r = T.totalRow; r <= newLastItemRow - 1; r++) {
+      sheetXml = setRow(sheetXml, r, renumberRow(middleTemplateXml, T.middleTemplateRow, r));
+    }
+
+    /* The true new last item row gets the bordered style. */
+    sheetXml = setRow(sheetXml, newLastItemRow, renumberRow(lastTemplateXml, T.lastItemRow, newLastItemRow));
+
+    /* Total row moves right after it. Two independent renumberings: its own
+       identity (29 -> newTotalRow), and separately the SUM(...) ranges' end
+       reference, which points at the OLD last-item-row (28). */
+    const newTotalRow = newLastItemRow + 1;
+    let totalRowXml = renumberRow(totalTemplateXml, T.totalRow, newTotalRow);
+    totalRowXml = renumberRow(totalRowXml, T.lastItemRow, newLastItemRow);
+    sheetXml = setRow(sheetXml, newTotalRow, totalRowXml);
+
+    sheetXml = sheetXml.replace(
+      '<mergeCell ref="C' + T.totalRow + ':D' + T.totalRow + '" />',
+      '<mergeCell ref="C' + newTotalRow + ':D' + newTotalRow + '" />'
+    );
+
+    const dim = /<dimension ref="A1:R(\d+)" \/>/.exec(sheetXml);
+    if (dim) {
+      const curMax = parseInt(dim[1], 10);
+      const needed = Math.max(curMax, newTotalRow);
+      if (needed !== curMax) sheetXml = sheetXml.replace(/<dimension ref="A1:R\d+" \/>/, '<dimension ref="A1:R' + needed + '" />');
+    }
+  }
+
+  items.forEach(function (it, i) {
+    const row = 11 + (i + 1);
+    sheetXml = setCell(sheetXml, "A" + row, "str", it.itemNo);
+    sheetXml = setCell(sheetXml, "B" + row, "num", it.qty);
+    sheetXml = setCell(sheetXml, "C" + row, "str", it.desc);
+    sheetXml = setCell(sheetXml, "H" + row, "num", it.rentalDays);
+    sheetXml = setCell(sheetXml, "I" + row, "str", it.warehouse);
+    const weight = Math.round(it.qty * (it.w || 0) * 10000) / 10000;
+    const volume = Math.round(it.qty * (it.v || 0) * 10000) / 10000;
+    sheetXml = setCell(sheetXml, "K" + row, "num", weight);
+    sheetXml = setCell(sheetXml, "L" + row, "num", volume);
+  });
+
+  return sheetXml;
+}
+
+/* ---- Build and trigger download of the real subrental request template ---- */
+async function downloadWorkbook() {
   const statusEl = document.getElementById("downloadStatus");
   const orderNo = document.getElementById("orderNo").value.trim();
   const periodFrom = document.getElementById("periodFrom").value;
@@ -671,30 +836,37 @@ function downloadWorkbook() {
   }
 
   const rows = getRowsWithCurrentInputs();
-  const aoa = [
-    ["Internal subrental request"],
-    ["Order no.", orderNo],
-    ["Subrental period — from", periodFrom, "to", periodTo],
-    [],
-    ["Art.Nr.", "Amount", "Description", "Rental days", "Warehouse"]
-  ];
-  rows.forEach(function (r) {
-    aoa.push([r.itemNo, r.qty, r.desc, r.rentalDays, r.warehouse]);
-  });
-
-  const ws = XLSX.utils.aoa_to_sheet(aoa);
-  ws["!cols"] = [{ wch: 12 }, { wch: 10 }, { wch: 55 }, { wch: 12 }, { wch: 20 }];
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, "Subrental request");
-
   const filename = "Subrental_" + orderNo + "_" + periodFrom + "_" + periodTo + ".xlsx";
-  /* Trigger the download explicitly via a Blob + <a download> instead of
-     XLSX.writeFile(). writeFile's built-in browser download is unreliable on
-     Safari and inside the hub's iframe; this path works everywhere. */
+  statusEl.textContent = "Building " + filename + "…";
+  statusEl.className = "upstatus busy";
+
   try {
-    const wbout = XLSX.write(wb, { bookType: "xlsx", type: "array" });
-    const blob = new Blob([wbout], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
-    const url = URL.createObjectURL(blob);
+    const items = rows.map(function (r) {
+      const entry = DB.items[r.itemNo];
+      return {
+        itemNo: r.itemNo, qty: r.qty, desc: r.desc, rentalDays: r.rentalDays, warehouse: r.warehouse,
+        w: entry && entry.w ? entry.w : 0, v: entry && entry.v ? entry.v : 0
+      };
+    });
+
+    const templateResp = await fetch("template.xlsx");
+    if (!templateResp.ok) throw new Error("Could not load template.xlsx (" + templateResp.status + ")");
+    const templateBuf = await templateResp.arrayBuffer();
+
+    const zip = await JSZip.loadAsync(templateBuf);
+    const sheetFile = zip.file("xl/worksheets/sheet1.xml");
+    if (!sheetFile) throw new Error("template.xlsx is missing xl/worksheets/sheet1.xml");
+    let sheetXml = await sheetFile.async("string");
+
+    sheetXml = fillSubrentalSheet(sheetXml, { orderNo: orderNo, periodFrom: periodFrom, periodTo: periodTo, items: items });
+    zip.file("xl/worksheets/sheet1.xml", sheetXml);
+
+    const blobOut = await zip.generateAsync({ type: "blob", mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+
+    /* Trigger the download explicitly via a Blob + <a download> - this path
+       has proven reliable across Safari and the hub's iframe, unlike
+       XLSX.writeFile()'s built-in browser download. */
+    const url = URL.createObjectURL(blobOut);
     const a = document.createElement("a");
     a.href = url;
     a.download = filename;
