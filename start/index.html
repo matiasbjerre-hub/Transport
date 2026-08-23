@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rent.Group — Tools</title>
+<meta name="description" content="The live Rent.Group web apps: the four-app Tools Hub and the Production Planner.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Montserrat:wght@400;500;600;700&display=swap">
+<style>
+  /* Single, deliberate visual world: the Rent.Group brand — black ground,
+     white cards, one red. Every colour is painted explicitly. */
+  :root {
+    --void:  #000000;
+    --card:  #ffffff;
+    --ink:   #14100f;
+    --muted: #6e6462;
+    --line:  #e4e0dd;
+    --red:   #c8102e;
+    --dim:   #8a8483;
+    --rail:  #2a2726;
+    --sp:    clamp(1.25rem, 4vw, 3.25rem);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--void);
+    color: #ffffff;
+    font-family: 'Montserrat', system-ui, -apple-system, sans-serif;
+    font-size: 16px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .bar {
+    display: flex;
+    align-items: center;
+    padding: 1rem var(--sp) 0;
+  }
+  .bar img { height: 30px; width: auto; display: block; }
+
+  main {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: clamp(2.5rem, 7vw, 4.5rem) var(--sp) 3rem;
+    display: flex;
+    flex-direction: column;
+    gap: clamp(2.25rem, 5vw, 3.25rem);
+  }
+
+  .intro { display: flex; flex-direction: column; gap: 0.85rem; max-width: 46ch; }
+
+  .eyebrow {
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 0.72rem;
+    font-weight: 500;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--red);
+    margin: 0;
+  }
+
+  h1 {
+    margin: 0;
+    font-size: clamp(2.1rem, 6.5vw, 3.35rem);
+    font-weight: 700;
+    letter-spacing: -0.025em;
+    line-height: 1.06;
+    text-wrap: balance;
+  }
+  h1 .dot { color: var(--red); }
+
+  .lede { margin: 0; color: var(--dim); font-size: clamp(1rem, 2vw, 1.09rem); }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.15rem;
+  }
+
+  .app {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+    background: var(--card);
+    color: var(--ink);
+    border-radius: 14px;
+    padding: 1.65rem 1.6rem 1.5rem;
+    text-decoration: none;
+    overflow: hidden;
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
+  }
+  /* The red rule is the only moving part: it runs the top edge of a card and
+     fills across on hover. */
+  .app::before {
+    content: "";
+    position: absolute;
+    top: 0; left: 0;
+    height: 3px;
+    width: 3.25rem;
+    background: var(--red);
+    transition: width 0.32s cubic-bezier(0.2, 0.7, 0.3, 1);
+  }
+  .app:hover, .app:focus-visible { transform: translateY(-3px); box-shadow: 0 14px 34px rgba(0,0,0,0.5); }
+  .app:hover::before, .app:focus-visible::before { width: 100%; }
+  .app:focus-visible { outline: 2px solid var(--red); outline-offset: 3px; }
+
+  .app h2 {
+    margin: 0;
+    font-size: 1.34rem;
+    font-weight: 700;
+    letter-spacing: -0.015em;
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+  }
+  .app h2 .arrow { color: var(--red); font-weight: 600; transition: transform 0.2s ease; display: inline-block; }
+  .app:hover h2 .arrow { transform: translateX(4px); }
+
+  .app p { margin: 0; color: var(--muted); font-size: 0.94rem; max-width: 40ch; }
+
+  /* Chips are structural, not decorative: on the hub card they name the four
+     apps that actually sit behind that one link. */
+  .chips { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.15rem; }
+  .chip {
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 0.71rem;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 0.22rem 0.62rem;
+    white-space: nowrap;
+  }
+  .chip.gate { color: var(--red); border-color: rgba(200,16,46,0.35); }
+
+  .url {
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 0.72rem;
+    color: #9a918f;
+    border-top: 1px solid var(--line);
+    padding-top: 0.8rem;
+    margin-top: auto;
+    overflow-wrap: anywhere;
+  }
+
+  footer {
+    border-top: 1px solid var(--rail);
+    padding: 1.15rem var(--sp) 2.5rem;
+    font-family: 'IBM Plex Mono', ui-monospace, monospace;
+    font-size: 0.72rem;
+    letter-spacing: 0.05em;
+    color: #5f5a59;
+  }
+  footer p { margin: 0; max-width: 1080px; margin-inline: auto; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .app, .app::before, .app h2 .arrow { transition: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="bar">
+  <img src="../logo.png" alt="Rent.Group">
+</div>
+
+<main>
+  <div class="intro">
+    <p class="eyebrow">Internal tools</p>
+    <h1>Rent.Group Tools<span class="dot">.</span></h1>
+    <p class="lede">Two web apps, both live. Open one from here, or bookmark it and skip this page.</p>
+  </div>
+
+  <div class="grid">
+    <a class="app" href="../hub/">
+      <h2>Tools Hub <span class="arrow" aria-hidden="true">&rarr;</span></h2>
+      <p>Four apps in one window. Switch with the tabs at the top, and Subrental hands its transport legs straight over to the Transport tab.</p>
+      <div class="chips">
+        <span class="chip">Catalogue</span>
+        <span class="chip">RFQ</span>
+        <span class="chip">Subrental</span>
+        <span class="chip">Transport</span>
+      </div>
+      <div class="url">matiasbjerre-hub.github.io/Transport/hub/</div>
+    </a>
+
+    <a class="app" href="https://production-planner-sigma.vercel.app" target="_blank" rel="noopener">
+      <h2>Production Planner <span class="arrow" aria-hidden="true">&rarr;</span></h2>
+      <p>Deliveries, vehicles and crew in one plan. Replaces the Production Calendar spreadsheet and publishes its own calendar feed, so Outlook keeps syncing.</p>
+      <div class="chips">
+        <span class="chip gate">Password required</span>
+        <span class="chip">Calendar feed</span>
+      </div>
+      <div class="url">production-planner-sigma.vercel.app</div>
+    </a>
+  </div>
+</main>
+
+<footer>
+  <p>Rent.Group Scandinavia</p>
+</footer>
+
+</body>
+</html>

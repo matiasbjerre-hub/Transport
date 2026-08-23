@@ -254,6 +254,31 @@ tab actually changes (`data-key` guard).
   with no Google login, embedded Transport/Subrental have no double header, and
   the Send-to-Transport handoff populates the cart in the Transport tab.
 
+## Landing page (`start/`) — the link you hand to a colleague (2026-08-23)
+
+`start/index.html` is a static landing page listing the **live** Rent.Group web
+apps: **https://matiasbjerre-hub.github.io/Transport/start/**. Two cards only —
+the four-app Hub (`../hub/`, one link; the four apps are named as chips on the
+card rather than as four separate links, which was an explicit user decision)
+and the **Production Planner** (`https://production-planner-sigma.vercel.app`,
+the `matiasbjerre-hub/production-planner` repo — a private Next.js app on
+Vercel, password-gated via `APP_PASSWORD`, hence the "Password required" chip).
+
+- **Same no-build pattern as everything else here:** one self-contained file,
+  Montserrat + IBM Plex Mono from Google Fonts, no framework, no dependencies.
+  Deployed by the existing `deploy-pages.yml` (whole repo root), so it needed no
+  workflow change.
+- **Logo is `../logo.png`** — the same file the hub uses, referenced relatively.
+  (A separate copy of this page exists as a Claude artifact where the logo is
+  inlined as a data URI, because artifacts block remote images. If you change
+  the page here, that copy does not follow automatically.)
+- **Deliberately single-theme** (brand black, white cards, `#c8102e`) — it does
+  not react to `prefers-color-scheme`, matching the rest of the site.
+- **The page is in English**, per the site-wide convention below.
+- **Personal apps are NOT listed here** and shouldn't be added: Piano-app and
+  Artist Search live on a separate landing page kept fully apart from
+  Rent.Group, per explicit user instruction.
+
 ## Tab navigation between Transport and Subrental
 
 Both pages now share a small pill-style tab bar right below the header logo
