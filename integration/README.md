@@ -41,6 +41,23 @@ not the repo.
 
 On error: `{ "ok": false, "error": "Price not available for this route" }`.
 
+## Button — open the calculator from inside RFQ
+
+`transport_button.gs` is the UI counterpart: it adds a **Transport** menu (and an
+"Open transport calculator" button that opens the public web app in a modal
+dialog) to the RFQ spreadsheet.
+
+1. In the RFQ Apps Script project: add the contents of `transport_button.gs` as a
+   new script file (and `clasp push`).
+2. Reload the spreadsheet → a **Transport** menu appears.
+
+> A project can have only one `onOpen()`. If RFQ already defines one, delete the
+> `onOpen()` in `transport_button.gs` and call `addTransportMenu_()` from the
+> existing `onOpen()` instead.
+
+The button just opens the published, login-free app
+(`https://matiasbjerre-hub.github.io/Transport/`) — no token or auth needed.
+
 ## Notes
 
 - Prices come from `rates.json` and are cached for 1 hour (`CacheService`).
