@@ -257,12 +257,24 @@ tab actually changes (`data-key` guard).
 ## Landing page (`start/`) — the link you hand to a colleague (2026-08-23)
 
 `start/index.html` is a static landing page listing the **live** Rent.Group web
-apps: **https://matiasbjerre-hub.github.io/Transport/start/**. Two cards only —
+apps: **https://matiasbjerre-hub.github.io/Transport/start/**. Three cards —
 the four-app Hub (`../hub/`, one link; the four apps are named as chips on the
-card rather than as four separate links, which was an explicit user decision)
-and the **Production Planner** (`https://production-planner-sigma.vercel.app`,
-the `matiasbjerre-hub/production-planner` repo — a private Next.js app on
-Vercel, password-gated via `APP_PASSWORD`, hence the "Password required" chip).
+card rather than as four separate links, which was an explicit user decision),
+**AGP-Assistent** (`https://hopper-vaerktoej-7319.vercel.app`, the
+`matiasbjerre-hub/AGP-Assistent` repo — automates umschlag dates, missing-item
+warehouse routing, and Subrental-sheet filling for AG&P quotes; added
+2026-09-02 after being found via `gh repo list`. No login wall observed when
+this card was added, despite an earlier memory claiming Vercel Authentication
+restricted it to Matias' account — re-check before assuming either way if
+this matters again), and the **Production Planner**
+(`https://production-planner-sigma.vercel.app`, the
+`matiasbjerre-hub/production-planner` repo — a private Next.js app on Vercel,
+password-gated via `APP_PASSWORD`, hence the "Password required" chip).
+
+`3D-til-AGP` (`matiasbjerre-hub/3D-til-AGP`) is **not** listed here — as of
+2026-09-02 it's a written plan only (`PLAN.md`), nothing built, and the plan
+itself recommends a local Python script rather than a web app. Don't add a
+card for it until it's actually live at some URL.
 
 - **Same no-build pattern as everything else here:** one self-contained file,
   Montserrat + IBM Plex Mono from Google Fonts, no framework, no dependencies.
