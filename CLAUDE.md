@@ -526,3 +526,45 @@ What a multi-repo session can then do that this one can't:
 
 What it still can't do: touch Apps Script code that exists **only** inside Google
 (not mirrored to a GitHub repo). Mirror it with clasp first.
+
+## Prompt template — link a newly-built app from a landing page (2026-09-02)
+
+Matias builds new apps in their own, separate repos/sessions that have no
+access to this conversation or this file. When one of those apps goes live, he
+pastes the template below into that session so it adds its own card — it does
+not describe the current page state (card count, which apps exist today), only
+the two pages' fixed coordinates, so it doesn't go stale as more cards get
+added or removed.
+
+> "Add a card for the app built in this session to one of my two landing
+> pages:
+>
+> 1. **Rent.Group Tools** (work apps) — English. Repo
+>    `matiasbjerre-hub/Transport`, file `start/index.html`, branch
+>    `claude/transport-repo-setup-ksz2ec` (not `main`). Live:
+>    https://matiasbjerre-hub.github.io/Transport/start/
+> 2. **Matias' Web Apps** (personal apps) — Danish. Repo
+>    `matiasbjerre-hub/klaver-og-scene`, file `index.html`, branch `main`.
+>    Live: https://matiasbjerre-hub.github.io/klaver-og-scene/
+>
+> Pick whichever fits; ask me if it's genuinely unclear whether this app is
+> work or personal.
+>
+> Steps:
+> 1. If the target repo isn't already cloned under `~/Documents/GitHub/<repo>`,
+>    clone it (`gh` is already authenticated as `matiasbjerre-hub`).
+> 2. Run `git status` first. Don't touch or commit any other pending/uncommitted
+>    changes you find — stage only the file you edit.
+> 3. Confirm the new app's live URL actually responds (curl for a 200) before
+>    linking to it.
+> 4. Check whether a placeholder card for this app already exists (dashed
+>    border, an 'In development' chip instead of a real address) — if so,
+>    convert that card into a real link instead of adding a new one.
+> 5. Copy an existing card's HTML structure exactly rather than inventing new
+>    markup, and change nothing else on the page. Match the page's own
+>    language (English for Rent.Group Tools, Danish for Matias' Web Apps) —
+>    not necessarily the app's own language.
+> 6. Commit, push to the branch named above, wait ~30-60s for the GitHub Pages
+>    rebuild, then curl the live page to confirm the new card is actually
+>    there before reporting done.
+> 7. Show me the final landing-page URL."
