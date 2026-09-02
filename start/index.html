@@ -137,6 +137,24 @@
     white-space: nowrap;
   }
   .chip.gate { color: var(--red); border-color: rgba(200,16,46,0.35); }
+  .chip.status { color: var(--dim); border-style: dashed; border-color: #4a4544; }
+
+  /* A card with nothing to link to yet: outline instead of a filled card,
+     no hover lift, no arrow — it reads as "not clickable" at a glance. */
+  .app.placeholder {
+    background: transparent;
+    border: 1px dashed var(--rail);
+    cursor: default;
+  }
+  .app.placeholder::before { content: none; }
+  .app.placeholder:hover, .app.placeholder:focus-visible {
+    transform: none;
+    box-shadow: none;
+    border-color: #4a4544;
+  }
+  .app.placeholder h2 { color: #d6d1cf; }
+  .app.placeholder p { color: var(--dim); }
+  .app.placeholder .url { border-top-color: var(--rail); color: #5f5a59; }
 
   .url {
     font-family: 'IBM Plex Mono', ui-monospace, monospace;
@@ -173,7 +191,7 @@
   <div class="intro">
     <p class="eyebrow">Internal tools</p>
     <h1>Rent.Group Tools<span class="dot">.</span></h1>
-    <p class="lede">Three web apps, all live. Open one from here, or bookmark it and skip this page.</p>
+    <p class="lede">Three web apps, all live — plus one more on the way. Open one from here, or bookmark it and skip this page.</p>
   </div>
 
   <div class="grid">
@@ -191,11 +209,11 @@
 
     <a class="app" href="https://hopper-vaerktoej-7319.vercel.app" target="_blank" rel="noopener">
       <h2>AGP-Assistent <span class="arrow" aria-hidden="true">&rarr;</span></h2>
-      <p>Umschlag-datoer, lejedage og lagervalg for mangelvarer — udfylder Subrental-arket for AG&amp;P-tilbud, ned fra cirka 90 minutter til cirka 3,5.</p>
+      <p>Umschlag dates, rental days and warehouse routing for missing items — fills in the Subrental sheet for an AG&amp;P quote, down from about 90 minutes to about 3.5.</p>
       <div class="chips">
         <span class="chip">AG&amp;P</span>
         <span class="chip">Subrental</span>
-        <span class="chip">Lagervalg</span>
+        <span class="chip">Warehouse</span>
       </div>
       <div class="url">hopper-vaerktoej-7319.vercel.app</div>
     </a>
@@ -209,6 +227,16 @@
       </div>
       <div class="url">production-planner-sigma.vercel.app</div>
     </a>
+
+    <div class="app placeholder">
+      <h2>3D &rarr; AG&amp;P</h2>
+      <p>Translates a furniture list exported from 3D Event Designer straight into AG&amp;P article numbers for a quote, so it's no longer done by hand.</p>
+      <div class="chips">
+        <span class="chip status">In development</span>
+        <span class="chip">AG&amp;P</span>
+      </div>
+      <div class="url">Not live yet</div>
+    </div>
   </div>
 </main>
 

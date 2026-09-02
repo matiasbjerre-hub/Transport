@@ -271,10 +271,20 @@ this matters again), and the **Production Planner**
 `matiasbjerre-hub/production-planner` repo — a private Next.js app on Vercel,
 password-gated via `APP_PASSWORD`, hence the "Password required" chip).
 
-`3D-til-AGP` (`matiasbjerre-hub/3D-til-AGP`) is **not** listed here — as of
-2026-09-02 it's a written plan only (`PLAN.md`), nothing built, and the plan
-itself recommends a local Python script rather than a web app. Don't add a
-card for it until it's actually live at some URL.
+`3D-til-AGP` (`matiasbjerre-hub/3D-til-AGP`) has a **fourth card, but as a
+placeholder** (`.app.placeholder`, a `<div>` not an `<a>` — no href, since
+there's nowhere to send anyone yet): as of 2026-09-02 it's a written plan only
+(`PLAN.md`), nothing built. The placeholder uses a dashed border, no red
+top-rule (`::before { content: none }`), no hover lift, and a dashed
+"In development" chip (`.chip.status`) instead of the usual `.url` line's real
+address. **When this repo goes live, swap the `<div class="app placeholder">`
+for an `<a class="app">` with its real `href`/`target`/`rel`**, drop the
+`placeholder` class and the status chip, and update the `.url` line — the
+`.placeholder`/`.chip.status` CSS can stay in the stylesheet for the next one
+of these. Note the plan itself recommends a local Python script over a web
+app, so this may end up needing a different kind of card entirely (e.g. "runs
+locally") rather than a live link — re-check `PLAN.md` before wiring up an
+href.
 
 - **Same no-build pattern as everything else here:** one self-contained file,
   Montserrat + IBM Plex Mono from Google Fonts, no framework, no dependencies.
