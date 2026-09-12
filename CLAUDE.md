@@ -257,7 +257,8 @@ tab actually changes (`data-key` guard).
 ## Landing page (`start/`) — the link you hand to a colleague (2026-08-23)
 
 `start/index.html` is a static landing page listing the **live** Rent.Group web
-apps: **https://matiasbjerre-hub.github.io/Transport/start/**. Four cards —
+apps: **https://matiasbjerre-hub.github.io/Transport/start/**. Six cards (five
+real, one placeholder) —
 the four-app Hub (`../hub/`, one link; the four apps are named as chips on the
 card rather than as four separate links, which was an explicit user decision),
 **AGP-Assistent** (`https://hopper-vaerktoej-7319.vercel.app`, the
@@ -278,10 +279,20 @@ Added 2026-09-02 after Matias linked it directly; it wasn't discoverable via
 pre-existing mismatch in that artifact, not something to fix here. Its "url"
 line shows the artifact URL truncated, and its chip says "Claude login
 required" rather than "Password required" since opening it needs a claude.ai
-session, not an app-level password. **This artifact appears tied to one
-card-statement period** (24 Jul–23 Aug 2026 at the time it was linked) —
-confirm with Matias whether the same URL gets republished each period before
-assuming this card stays accurate indefinitely), and the **Production
+session, not an app-level password. **Confirmed 2026-09-12: this artifact does
+get republished to the same URL each statement period** (it showed an updated
+timestamp without a new URL appearing), so the card stays accurate — no need
+to keep re-flagging this each audit), **VIP List**
+(`https://vip-list-b5q5.vercel.app`, the private `matiasbjerre-hub/vip-list`
+repo — a password-gated Next.js/Postgres app tracking VIP contacts and their
+invitation status across events, `people`/`events`/`invitations` tables with
+an enum from `not_invited` through `attended`. Added 2026-09-12, found via
+`gh repo list` even though it has no `homepage` field set — the real URL had
+to be found through the GitHub Deployments API (`gh api
+repos/.../deployments` → `.../statuses`), since the project's *clean* alias
+`vip-list.vercel.app` turned out to belong to someone else's unrelated
+project. There are also two hash-suffixed preview URLs from the same
+deployments — don't use those, they're not stable), and the **Production
 Planner** (`https://production-planner-sigma.vercel.app`, the
 `matiasbjerre-hub/production-planner` repo — a private Next.js app on Vercel,
 password-gated via `APP_PASSWORD`, hence the "Password required" chip).
@@ -295,20 +306,24 @@ for either until something real is built and live — ask Matias first, since
 even a placeholder card (see 3D-til-AGP below) implies more progress than a
 design doc represents.
 
-`3D-til-AGP` (`matiasbjerre-hub/3D-til-AGP`) has a **fourth card, but as a
+`3D-til-AGP` (`matiasbjerre-hub/3D-til-AGP`) has a **card, but as a
 placeholder** (`.app.placeholder`, a `<div>` not an `<a>` — no href, since
-there's nowhere to send anyone yet): as of 2026-09-02 it's a written plan only
-(`PLAN.md`), nothing built. The placeholder uses a dashed border, no red
-top-rule (`::before { content: none }`), no hover lift, and a dashed
+there's nowhere to send anyone yet). The placeholder uses a dashed border, no
+red top-rule (`::before { content: none }`), no hover lift, and a dashed
 "In development" chip (`.chip.status`) instead of the usual `.url` line's real
-address. **When this repo goes live, swap the `<div class="app placeholder">`
-for an `<a class="app">` with its real `href`/`target`/`rel`**, drop the
-`placeholder` class and the status chip, and update the `.url` line — the
-`.placeholder`/`.chip.status` CSS can stay in the stylesheet for the next one
-of these. Note the plan itself recommends a local Python script over a web
-app, so this may end up needing a different kind of card entirely (e.g. "runs
-locally") rather than a live link — re-check `PLAN.md` before wiring up an
-href.
+address.
+
+**Status as of 2026-09-12: this project is built and working, but it is a
+local Python CLI script (`match.py`), not a web app, and Matias has
+confirmed (choice "A" when asked) that the placeholder should stay exactly as
+it is** — don't "graduate" it to a real link. Its GitHub `homepage` field
+points at `https://moebelbro-vaerktoej-5182.vercel.app`, which **404s** — that
+Vercel project has no real content behind it (likely an unused auto-link), so
+never trust a repo's `homepage` field alone as evidence of a live app; always
+curl it. If Matias ever asks to update this card's wording to be more
+accurate (e.g. "Runs locally" instead of "In development"), that's a
+deliberate future edit, not something to do proactively — he was asked and
+chose to leave it as-is.
 
 - **Same no-build pattern as everything else here:** one self-contained file,
   Montserrat + IBM Plex Mono from Google Fonts, no framework, no dependencies.
