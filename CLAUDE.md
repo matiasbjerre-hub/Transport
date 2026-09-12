@@ -257,7 +257,7 @@ tab actually changes (`data-key` guard).
 ## Landing page (`start/`) — the link you hand to a colleague (2026-08-23)
 
 `start/index.html` is a static landing page listing the **live** Rent.Group web
-apps: **https://matiasbjerre-hub.github.io/Transport/start/**. Six cards (five
+apps: **https://matiasbjerre-hub.github.io/Transport/start/**. Seven cards (six
 real, one placeholder) —
 the four-app Hub (`../hub/`, one link; the four apps are named as chips on the
 card rather than as four separate links, which was an explicit user decision),
@@ -267,7 +267,21 @@ warehouse routing, and Subrental-sheet filling for AG&P quotes; added
 2026-09-02 after being found via `gh repo list`. No login wall observed when
 this card was added, despite an earlier memory claiming Vercel Authentication
 restricted it to Matias' account — re-check before assuming either way if
-this matters again), **Kwick Kvitteringer**
+this matters again), **AG&P Klargøring**
+(`https://claude.ai/code/artifact/18ca43df-ec40-4777-b215-71f102f0bfcd`, a
+**private Claude artifact, not a repo/app** — a companion setup guide for
+AGP-Assistent's computer-use flow: a one-time macOS checklist (screen
+recording permission, Focus mode to stop notifications blocking clicks,
+disabling Universal Control, sleep settings, folder access) plus a
+persisted-in-`localStorage` pre-flight checklist to run before each computer-use
+session. Added 2026-09-12, found via `Artifact` list, not `gh repo list` —
+it isn't a repo. This is categorically different from the other cards: it's a
+*guide*, not a tool that does work itself, but it was included since Matias'
+instruction was to add any app found, and it's genuinely used repeatedly, not
+a one-off document (unlike the two RFQ Platform design docs below, which
+stayed excluded). If this distinction ever matters, reconsider whether guide
+artifacts belong on this page at all — that judgment call was made once here,
+not settled as a standing rule), **Kwick Kvitteringer**
 (`https://claude.ai/code/artifact/14e12ab1-7bc3-4ac5-9773-1bc045405883`, a
 **private Claude artifact, not a GitHub/Vercel app** — tracks missing receipts
 against a Kwick Expense card statement, records who attended a client dinner,
@@ -297,14 +311,18 @@ Planner** (`https://production-planner-sigma.vercel.app`, the
 `matiasbjerre-hub/production-planner` repo — a private Next.js app on Vercel,
 password-gated via `APP_PASSWORD`, hence the "Password required" chip).
 
-Two more artifacts exist (`RFQ Platform — bygget, lag for lag` and `Bekræft
-eller ret`, both private, found via `Artifact` list on 2026-09-02) but are
-**not** linked here: both are internal design/status write-ups about a
-possible RFQ Platform rebuild, with no functioning app and no live URL in
-either document (confirmed by grepping for `href="http`). Don't add a card
-for either until something real is built and live — ask Matias first, since
-even a placeholder card (see 3D-til-AGP below) implies more progress than a
-design doc represents.
+Three more artifacts exist but are **not** linked here:
+- `RFQ Platform — bygget, lag for lag` and `Bekræft eller ret` (both private,
+  found via `Artifact` list on 2026-09-02): internal design/status write-ups
+  about a possible RFQ Platform rebuild, with no functioning app and no live
+  URL in either document (confirmed by grepping for `href="http`). Don't add a
+  card for either until something real is built and live — ask Matias first,
+  since even a placeholder card (see 3D-til-AGP below) implies more progress
+  than a design doc represents.
+- `Morning Brief` (found 2026-09-12): output of the built-in `morning` skill —
+  a fresh calendar/email digest generated each day, not a tool Matias built.
+  Never add a card for this or any future re-generation of it; it isn't the
+  kind of thing this page is for.
 
 `3D-til-AGP` (`matiasbjerre-hub/3D-til-AGP`) has a **card, but as a
 placeholder** (`.app.placeholder`, a `<div>` not an `<a>` — no href, since
