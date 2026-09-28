@@ -257,72 +257,84 @@ tab actually changes (`data-key` guard).
 ## Landing page (`start/`) — the link you hand to a colleague (2026-08-23)
 
 `start/index.html` is a static landing page listing the **live** Rent.Group web
-apps: **https://matiasbjerre-hub.github.io/Transport/start/**. Seven cards (six
-real, one placeholder) —
-the four-app Hub (`../hub/`, one link; the four apps are named as chips on the
-card rather than as four separate links, which was an explicit user decision),
-**AGP-Assistent** (`https://hopper-vaerktoej-7319.vercel.app`, the
-`matiasbjerre-hub/AGP-Assistent` repo — automates umschlag dates, missing-item
-warehouse routing, and Subrental-sheet filling for AG&P quotes; added
-2026-09-02 after being found via `gh repo list`. No login wall observed when
-this card was added, despite an earlier memory claiming Vercel Authentication
-restricted it to Matias' account — re-check before assuming either way if
-this matters again), **AG&P Klargøring**
-(`https://claude.ai/code/artifact/18ca43df-ec40-4777-b215-71f102f0bfcd`, a
-**private Claude artifact, not a repo/app** — a companion setup guide for
-AGP-Assistent's computer-use flow: a one-time macOS checklist (screen
-recording permission, Focus mode to stop notifications blocking clicks,
-disabling Universal Control, sleep settings, folder access) plus a
-persisted-in-`localStorage` pre-flight checklist to run before each computer-use
-session. Added 2026-09-12, found via `Artifact` list, not `gh repo list` —
-it isn't a repo. This is categorically different from the other cards: it's a
-*guide*, not a tool that does work itself, but it was included since Matias'
-instruction was to add any app found, and it's genuinely used repeatedly, not
-a one-off document (unlike the two RFQ Platform design docs below, which
-stayed excluded). If this distinction ever matters, reconsider whether guide
-artifacts belong on this page at all — that judgment call was made once here,
-not settled as a standing rule), **Kwick Kvitteringer**
-(`https://claude.ai/code/artifact/14e12ab1-7bc3-4ac5-9773-1bc045405883`, a
-**private Claude artifact, not a GitHub/Vercel app** — tracks missing receipts
-against a Kwick Expense card statement, records who attended a client dinner,
-and writes a ready-made prompt to have Claude go chase down what's missing.
-Added 2026-09-02 after Matias linked it directly; it wasn't discoverable via
-`gh repo list` since it isn't a repo. Its own masthead links back to
-`https://claude.ai/code/artifact/0cbf25b4-70e3-4b33-9ea0-52326cfd91c6` — the
-*artifact* copy of this same landing page, not this GitHub Pages one; that's a
-pre-existing mismatch in that artifact, not something to fix here. Its "url"
-line shows the artifact URL truncated, and its chip says "Claude login
-required" rather than "Password required" since opening it needs a claude.ai
-session, not an app-level password. **Confirmed 2026-09-12: this artifact does
-get republished to the same URL each statement period** (it showed an updated
-timestamp without a new URL appearing), so the card stays accurate — no need
-to keep re-flagging this each audit), **VIP List**
-(`https://vip-list-b5q5.vercel.app`, the private `matiasbjerre-hub/vip-list`
-repo — a password-gated Next.js/Postgres app tracking VIP contacts and their
-invitation status across events, `people`/`events`/`invitations` tables with
-an enum from `not_invited` through `attended`. Added 2026-09-12, found via
-`gh repo list` even though it has no `homepage` field set — the real URL had
-to be found through the GitHub Deployments API (`gh api
-repos/.../deployments` → `.../statuses`), since the project's *clean* alias
-`vip-list.vercel.app` turned out to belong to someone else's unrelated
-project. There are also two hash-suffixed preview URLs from the same
-deployments — don't use those, they're not stable), and the **Production
-Planner** (`https://production-planner-sigma.vercel.app`, the
-`matiasbjerre-hub/production-planner` repo — a private Next.js app on Vercel,
-password-gated via `APP_PASSWORD`, hence the "Password required" chip).
+apps: **https://matiasbjerre-hub.github.io/Transport/start/**. Nine cards
+(eight real, one placeholder), in this order:
 
-Three more artifacts exist but are **not** linked here:
-- `RFQ Platform — bygget, lag for lag` and `Bekræft eller ret` (both private,
-  found via `Artifact` list on 2026-09-02): internal design/status write-ups
-  about a possible RFQ Platform rebuild, with no functioning app and no live
-  URL in either document (confirmed by grepping for `href="http`). Don't add a
-  card for either until something real is built and live — ask Matias first,
-  since even a placeholder card (see 3D-til-AGP below) implies more progress
-  than a design doc represents.
-- `Morning Brief` (found 2026-09-12): output of the built-in `morning` skill —
-  a fresh calendar/email digest generated each day, not a tool Matias built.
-  Never add a card for this or any future re-generation of it; it isn't the
-  kind of thing this page is for.
+1. **Tools Hub** (`../hub/`, one link; the four apps behind it — Catalogue,
+   RFQ, Subrental, Transport — are named as chips on the card rather than as
+   four separate links, an explicit user decision).
+2. **AGP-Assistent** (`https://hopper-vaerktoej-7319.vercel.app`, the
+   `matiasbjerre-hub/AGP-Assistent` repo — automates umschlag dates,
+   missing-item warehouse routing, and Subrental-sheet filling for AG&P
+   quotes; added 2026-09-02 via `gh repo list`. No login wall observed despite
+   an earlier memory claiming Vercel Authentication restricted it — re-check
+   before assuming either way if this matters again).
+3. **AG&P Klargøring** (`https://claude.ai/artifact/44YqKZ22A3qWms15QDNEoe`,
+   a **private Claude artifact, not a repo/app** — a companion setup guide
+   for AGP-Assistent's computer-use flow: a one-time macOS checklist (screen
+   recording permission, Focus mode, disabling Universal Control, sleep
+   settings, folder access) plus a `localStorage`-persisted pre-flight
+   checklist. Added 2026-09-12 via `Artifact` list, not `gh repo list` — it
+   isn't a repo. Categorically different from the app cards: it's a *guide*,
+   included because Matias' instruction was to add any app found and it's
+   genuinely used repeatedly).
+4. **Kwick Kvitteringer** (`https://claude.ai/artifact/3aYPeQrhqyKKnYWMhbPJTk`,
+   private Claude artifact — tracks missing receipts against a Kwick Expense
+   card statement, records who attended a client dinner, writes a ready-made
+   Claude prompt to chase down what's missing. Added 2026-09-02. Confirmed
+   2026-09-12 that it gets republished to the same artifact rather than
+   creating a new one each statement period).
+5. **Kvitteringer på autopilot**
+   (`https://claude.ai/artifact/BS4WRZZFTL8WKaCXZJ1FQM`, private Claude
+   artifact — a setup guide for automating Kwick Expense receipt capture via
+   Outlook + Power Automate + the Claude Chrome extension, so receipts get
+   booked and the fortnightly "hunt" (matching Kwick Kvitteringer's job) runs
+   on its own. Added 2026-09-28, found via `Artifact` list. Likely intended to
+   eventually make card 4 unnecessary once automation is fully adopted — don't
+   remove Kwick Kvitteringer on your own judgment, ask Matias first once this
+   has had time to prove out).
+6. **Production Planner** (`https://production-planner-sigma.vercel.app`, the
+   `matiasbjerre-hub/production-planner` repo — password-gated via
+   `APP_PASSWORD`, hence "Password required").
+7. **VIP List** — a password-gated Next.js/Postgres app tracking VIP contacts
+   and invitation status across events (`people`/`events`/`invitations`
+   tables, enum `not_invited`→`attended`). Added 2026-09-12. **This card's URL
+   has already been fixed twice** — `vip-list-b5q5.vercel.app` (dead by
+   2026-09-13) → `vip-list-matiasbjerre-hub1.vercel.app` (dead by 2026-09-28,
+   fixed without updating this doc) → current:
+   `https://vip-list-eta.vercel.app`. The `matiasbjerre-hub/vip-list` repo has
+   no reliable clean alias; **before trusting any URL for this card, check
+   `gh api repos/matiasbjerre-hub/vip-list --jq '.homepage'` AND curl it** —
+   don't assume last session's fix is still current.
+8. **Morning Brief** (`https://claude.ai/artifact/KrmZw7TWQPsRVzfGpkfh4r`,
+   private Claude artifact). **This is the output of the built-in `morning`
+   skill, not a tool Matias built** — a prior version of this doc said to
+   never add a card for it, for exactly that reason. On 2026-09-28 Matias
+   explicitly asked to add it anyway, "as if" he'd built it, overriding that
+   recommendation — so the card is written in the same plain tone as every
+   other card, no caveat about its origin. **This section stays honest about
+   what it actually is, for future maintenance** — that's a distinct thing
+   from the public-facing card copy, which was Matias' explicit request.
+   **Known problem: the artifact is a dated snapshot, not a live app** — it
+   was last regenerated 2026-09-10 and links to that day's calendar/email
+   content (e.g. "Thursday · September 10 2026"). It will read as stale
+   every day it isn't regenerated. Don't assume it's current; if Matias wants
+   this kept fresh, that needs either a recurring re-publish or a different
+   mechanism — flagged to him, not solved unilaterally.
+
+Two more artifacts exist but stay **not** linked here: `RFQ Platform — bygget,
+lag for lag` and `Bekræft eller ret` (both private, found via `Artifact` list
+on 2026-09-02) — internal design/status write-ups about a possible RFQ
+Platform rebuild, no functioning app, no live URL in either document
+(confirmed by grepping for `href="http`). Don't add a card for either until
+something real is built and live — ask Matias first, since even a placeholder
+card (see 3D-til-AGP below) implies more progress than a design doc
+represents.
+
+`matiasbjerre-hub/rentgroup-noter` (found 2026-09-28) is **not** a candidate
+for a card either — it's a private repo of markdown notes (handover docs,
+session logs, domain rules, prompts), not code, not deployed anywhere, no
+Pages, no homepage. It's a knowledge base, not an app.
 
 `3D-til-AGP` (`matiasbjerre-hub/3D-til-AGP`) has a **card, but as a
 placeholder** (`.app.placeholder`, a `<div>` not an `<a>` — no href, since
