@@ -257,8 +257,8 @@ tab actually changes (`data-key` guard).
 ## Landing page (`start/`) — the link you hand to a colleague (2026-08-23)
 
 `start/index.html` is a static landing page listing the **live** Rent.Group web
-apps: **https://matiasbjerre-hub.github.io/Transport/start/**. Nine cards
-(eight real, one placeholder), in this order:
+apps: **https://matiasbjerre-hub.github.io/Transport/start/**. Eight cards
+(seven real, one placeholder), in this order:
 
 1. **Tools Hub** (`../hub/`, one link; the four apps behind it — Catalogue,
    RFQ, Subrental, Transport — are named as chips on the card rather than as
@@ -306,30 +306,25 @@ apps: **https://matiasbjerre-hub.github.io/Transport/start/**. Nine cards
    no reliable clean alias; **before trusting any URL for this card, check
    `gh api repos/matiasbjerre-hub/vip-list --jq '.homepage'` AND curl it** —
    don't assume last session's fix is still current.
-8. **Morning Brief** (`https://claude.ai/artifact/KrmZw7TWQPsRVzfGpkfh4r`,
-   private Claude artifact). **This is the output of the built-in `morning`
-   skill, not a tool Matias built** — a prior version of this doc said to
-   never add a card for it, for exactly that reason. On 2026-09-28 Matias
-   explicitly asked to add it anyway, "as if" he'd built it, overriding that
-   recommendation — so the card is written in the same plain tone as every
-   other card, no caveat about its origin. **This section stays honest about
-   what it actually is, for future maintenance** — that's a distinct thing
-   from the public-facing card copy, which was Matias' explicit request.
-   **Known problem: the artifact is a dated snapshot, not a live app** — it
-   was last regenerated 2026-09-10 and links to that day's calendar/email
-   content (e.g. "Thursday · September 10 2026"). It will read as stale
-   every day it isn't regenerated. Don't assume it's current; if Matias wants
-   this kept fresh, that needs either a recurring re-publish or a different
-   mechanism — flagged to him, not solved unilaterally.
-
-Two more artifacts exist but stay **not** linked here: `RFQ Platform — bygget,
-lag for lag` and `Bekræft eller ret` (both private, found via `Artifact` list
-on 2026-09-02) — internal design/status write-ups about a possible RFQ
-Platform rebuild, no functioning app, no live URL in either document
-(confirmed by grepping for `href="http`). Don't add a card for either until
-something real is built and live — ask Matias first, since even a placeholder
-card (see 3D-til-AGP below) implies more progress than a design doc
-represents.
+Three more artifacts exist but stay **not** linked here:
+- `RFQ Platform — bygget, lag for lag` and `Bekræft eller ret` (both private,
+  found via `Artifact` list on 2026-09-02) — internal design/status write-ups
+  about a possible RFQ Platform rebuild, no functioning app, no live URL in
+  either document (confirmed by grepping for `href="http`). Don't add a card
+  for either until something real is built and live — ask Matias first, since
+  even a placeholder card (see 3D-til-AGP below) implies more progress than a
+  design doc represents.
+- `Morning Brief` (`https://claude.ai/artifact/KrmZw7TWQPsRVzfGpkfh4r`) — the
+  output of the built-in `morning` skill, not a tool Matias built. **History:
+  excluded originally (2026-09-12) → added back 2026-09-28 on Matias' explicit
+  instruction to include it "as if" he'd built it → removed again the same day**
+  once he confirmed the reason: clicking the card doesn't give current
+  information, since the artifact is a dated snapshot (last regenerated
+  2026-09-10, still showing that day's calendar/email content) rather than
+  something that re-runs on open. **Don't re-add this without a way for the
+  click-through to show genuinely current data** — a static link to one
+  snapshot fails the entire point of a card on this page, regardless of
+  whether Matias built it or a skill did.
 
 `matiasbjerre-hub/rentgroup-noter` (found 2026-09-28) is **not** a candidate
 for a card either — it's a private repo of markdown notes (handover docs,
