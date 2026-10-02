@@ -256,6 +256,13 @@ tab actually changes (`data-key` guard).
 
 ## Landing page (`start/`) — the link you hand to a colleague (2026-08-23)
 
+> **Moved 2026-10-03:** The landing page is now the **Rent.Group Tools Dashboard** on Vercel:
+> https://rent-group-dashboard.vercel.app (private repo `matiasbjerre-hub/rent-group-dashboard`,
+> auto-deploy from `main`). `start/index.html` here is only a redirect to it, so don't add cards here.
+> The private apps moved the same way to https://matias-web-apps.vercel.app (repo
+> `matiasbjerre-hub/matias-web-apps`). Current cards and decisions: the README in those repos and
+> `rentgroup-noter/overdragelse/NOTE_dashboards-paa-vercel.md`. The rest of this section is history.
+
 `start/index.html` is a static landing page listing the **live** Rent.Group web
 apps: **https://matiasbjerre-hub.github.io/Transport/start/**. Eight cards
 (seven real, one placeholder), in this order:
