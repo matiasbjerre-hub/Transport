@@ -500,7 +500,9 @@ irrelevant to that. **The transport price is integrated into RFQ Analyser.**
 - **Cities** (id → name): HAM Hamburg, BER Berlin, BOC Bocholt, HAN Hannover
   (these four are the **Copenhagen Umschlag** cities — shown first, ★, gold/red),
   then CPH Copenhagen, GOT Gothenburg, STO Stockholm, OSL Oslo, BRE Bremen,
-  DOR Dortmund, FFM Frankfurt. **Malmö is intentionally excluded everywhere.**
+  DOR Dortmund, FFM Frankfurt, MAL Malmö. **Malmö was added 03-10-2026** (Matias):
+  its prices come only from the Malmö rows of the DDSJ sheet via `rates.json` —
+  there are no Malmö routes in the `RATES_EUR` fallback.
 - **Price source:** DDSJ 2026 international list, EUR, total price per transport.
 - **Pallet → column:** ≤4→col0, ≤8→col1, 9–18→exact col, 19–33→full trailer.
 - **Vehicles:** Van (≤4), Curtain van (≤8), **Truck 18p** (9–18),

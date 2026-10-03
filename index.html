@@ -361,7 +361,7 @@
           automatically from the number of pallets (Van ≤4, Curtain van ≤8,
           Truck 18p for 9–18, Full trailer 33). Loads above 33 pallets are split across
           several vehicles. When m³ is entered, pallets are derived as m³ ÷ 2
-          (rounded up). Routes via Malmö are intentionally excluded. ★ marks the
+          (rounded up). Malmö prices come from the Malmö rows in the DDSJ list. ★ marks the
           Copenhagen Umschlag cities.
         </div>
         <input type="file" id="file" accept=".xlsx,.xls" hidden>
@@ -397,6 +397,7 @@ const CITIES = [
   { id: "HAN", name: "Hannover", umschlag: true },
   /* All other cities */
   { id: "CPH", name: "Copenhagen" },
+  { id: "MAL", name: "Malmö" },
   { id: "GOT", name: "Gothenburg" },
   { id: "STO", name: "Stockholm" },
   { id: "OSL", name: "Oslo" },
@@ -420,7 +421,8 @@ const M3_PER_PALLET = 2;
 /* ============================================================
    PRICE TABLE — EUR per transport (DDSJ 2026, intl.)
    Key: "FROM-TO". Value: price for each column in PCOLS.
-   Routes involving Malmö are deliberately omitted.
+   Malmö (MAL) has no fallback prices here: its routes come from rates.json,
+   i.e. the Malmö rows of the uploaded DDSJ sheet (added 03-10-2026).
    ============================================================ */
 const RATES_EUR = {
   "BER-CPH": [496.8, 621, 717.25, 782.46, 847.66, 912.87, 978.07, 1043.28, 1130.22, 1195.42, 1260.63, 1325.83, 2173.5],
@@ -516,7 +518,8 @@ const GH = {
 
 /* City name (as in the price sheet) -> id, for parsing uploads. */
 const NAME_TO_ID = {};
-CITIES.forEach(function (c) { NAME_TO_ID[c.name] = c.id; });
+CITIES.forEach(function (c) { NAME_TO_ID[c.name.normalize("NFC")] = c.id; });
+NAME_TO_ID["Malmo"] = "MAL"; /* the sheet may spell it without ö */
 
 let twoWays = true; // round trip is the default
 
@@ -865,8 +868,7 @@ function parseWorkbook(buf) {
   rows.forEach(function (r) {
     const o = r[0], d = r[1];
     if (typeof o !== "string" || typeof d !== "string") return;
-    if (o.trim() === "Malmö" || d.trim() === "Malmö") return;   /* excluded */
-    const oid = NAME_TO_ID[o.trim()], did = NAME_TO_ID[d.trim()];
+    const oid = NAME_TO_ID[o.trim().normalize("NFC")], did = NAME_TO_ID[d.trim().normalize("NFC")];
     if (!oid || !did) return;
     const vals = r.slice(3, 16);
     if (vals.length < 13) return;

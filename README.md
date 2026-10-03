@@ -35,8 +35,8 @@ Everything lives at the top of `<script>` in `index.html`:
 
 ## Behaviour
 
-- **Source:** DDSJ 2026 international list only. **All routes via Malmö are
-  excluded.**
+- **Source:** DDSJ 2026 international list only. Malmö routes come from the
+  list's Malmö rows (added 03-10-2026).
 - **Vehicle** is chosen from the pallet count: Van (≤4), Curtain van (≤8),
   Truck 18p (9–18), Full trailer (33). Loads above 33 pallets are split across
   several vehicles (full trailers + the smallest vehicle for the remainder) and

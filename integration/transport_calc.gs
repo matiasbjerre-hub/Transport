@@ -34,7 +34,8 @@ var FX_FALLBACK = { EUR: 1, DKK: 7.46, SEK: 11.34 };
 var NAME_TO_ID = {
   'Hamburg': 'HAM', 'Berlin': 'BER', 'Bocholt': 'BOC', 'Hannover': 'HAN',
   'Copenhagen': 'CPH', 'Gothenburg': 'GOT', 'Stockholm': 'STO', 'Oslo': 'OSL',
-  'Bremen': 'BRE', 'Dortmund': 'DOR', 'Frankfurt': 'FFM'
+  'Bremen': 'BRE', 'Dortmund': 'DOR', 'Frankfurt': 'FFM',
+  'Malmö': 'MAL', 'Malmo': 'MAL'
 };
 
 /**
